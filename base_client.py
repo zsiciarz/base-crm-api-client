@@ -83,41 +83,41 @@ class BaseAPIService(object):
         'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
     ]
 
-    CONTACT_PARAMS = {
-        'name': '',
-        'last_name': '',
-        'first_name': '',
-        'is_organisation': '',
-        'contact_id': '',
-        'email': '',
-        'phone': '',
-        'mobile': '',
-        'twitter': '',
-        'skype': '',
-        'facebook': '',
-        'linkedin': '',
-        'address': '',
-        'city': '',
-        'country': '',
-        'title': '',
-        'description': '',
-        'industry': '',
-        'website': '',
-        'fax': '',
-        'tag_list': '',
-        'private': '',
-        }
+    CONTACT_PARAMS = [
+        'name',
+        'last_name',
+        'first_name',
+        'is_organisation',
+        'contact_id',
+        'email',
+        'phone',
+        'mobile',
+        'twitter',
+        'skype',
+        'facebook',
+        'linkedin',
+        'address',
+        'city',
+        'country',
+        'title',
+        'description',
+        'industry',
+        'website',
+        'fax',
+        'tag_list',
+        'private',
+        ]
 
-    DEAL_PARAMS = {
-        'name': '',
-        'entity_id': '',
-        'scope': '',
-        'hot': 'false',
-        'deal_tags': '',
-        'contact_ids': '',
-        'source_id': '',
-        'stage': '',
-        }
+    DEAL_PARAMS = [
+        'name',
+        'entity_id',
+        'scope',
+        'hot',
+        'deal_tags',
+        'contact_ids',
+        'source_id',
+        'stage',
+        ]
 
     DEAL_STAGES = [
         'incoming',
@@ -508,7 +508,7 @@ class BaseAPIService(object):
         final_params = {}
 
         for key in deal_info.keys():
-            if key not in self.DEAL_PARAMS.keys():
+            if key not in self.DEAL_PARAMS:
                 return "%s is not a legal deal attribute" % key
             else:
                 final_params[key] = deal_info[key]
@@ -670,10 +670,6 @@ class BaseAPIService(object):
 
         url = self.resource['sales'] + contacts_url
 
-        self.CONTACT_PARAMS['is_organisation'] = 'false'
-        if not person:
-            self.CONTACT_PARAMS['is_organisation'] = 'true'
-
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
         if contact_info == {} or \
@@ -681,10 +677,14 @@ class BaseAPIService(object):
                 'last_name' not in contact_info.keys()):
             return
 
-        final_params = {}
+        final_params = dict()
+
+        final_params['is_organisation'] = 'false'
+        if not person:
+            final_params['is_organisation'] = 'true'
 
         for key in contact_info.keys():
-            if key not in self.CONTACT_PARAMS.keys():
+            if key not in self.CONTACT_PARAMS:
                 return
             else:
                 final_params['contact[' + key + ']'] = contact_info[key]
@@ -707,10 +707,6 @@ class BaseAPIService(object):
         """
         full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
 
-        self.CONTACT_PARAMS['is_organisation'] = 'false'
-        if not person:
-            self.CONTACT_PARAMS['is_organisation'] = 'true'
-
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
         if contact_info == {} or\
@@ -720,8 +716,12 @@ class BaseAPIService(object):
 
         final_params = {}
 
+        final_params['is_organisation'] = 'false'
+        if not person:
+            final_params['is_organisation'] = 'true'
+
         for key in contact_info.keys():
-            if key not in self.CONTACT_PARAMS.keys():
+            if key not in self.CONTACT_PARAMS:
                 return
             else:
                 final_params['contact[' + key + ']'] = contact_info[key]
