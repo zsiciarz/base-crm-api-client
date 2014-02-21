@@ -837,7 +837,7 @@ class BaseAPIService(object):
             else:
                 raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
 
-    params = urllib.urlencode(valid_params)
+        params = urllib.urlencode(valid_params)
 
         full_url = url + '?' + params
         return self._get_data(full_url)
@@ -910,4 +910,21 @@ class BaseAPIService(object):
         data = response.read()
 
         return data
+
+    ##########################
+    # Tags Functions
+    ##########################
+    def get_tags(self, page=0):
+        """
+        Gets tag objects in batches of 20.
+        Arguments:
+            page = the set of deals to return. 1 (default) returns the first 20.
+        """
+        url = self._build_tags_url(format=self.format)
+        # Append parameters
+        params = urllib.urlencode({
+            'page': page,
+            })
+        full_url = url + '?' + params
+        return self._get_data(full_url)
 
