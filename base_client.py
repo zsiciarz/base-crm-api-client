@@ -1,7 +1,6 @@
 import urllib
 import urllib2
 import logging
-
 import json
 
 logger = logging.getLogger(__name__)
@@ -253,7 +252,7 @@ class BaseAPIService(object):
             data = json.loads(data)
         return data
 
-    def _format_url(self, url, format=None):
+    def _apply_format(self, url, format=None):
         """
         This function appends an appropriate extension telling the BaseCRM API to respond in a particular format. The
         'native' format uses json.
@@ -286,7 +285,7 @@ class BaseAPIService(object):
         url += '/deals'
         if deal_id is not None:
             url += '/%s' % (deal_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_lead_url(self, lead_id = None, format=None):
         """
@@ -299,7 +298,7 @@ class BaseAPIService(object):
         url = self.resource['leads'] + '/leads'
         if lead_id is not None:
             url += '/%s' % (lead_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_contact_url(self, contact_id = None, company_id = None, deal_id = None, format=None):
         """
@@ -325,7 +324,7 @@ class BaseAPIService(object):
                 url += '/%s' % (contact_id)
             else:
                 raise ValueError("Cannot include both a contact and company ID.")
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_note_url(self, note_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
         """
@@ -352,7 +351,7 @@ class BaseAPIService(object):
         url += '/notes'
         if note_id is not None:
             url += '/%s' % (note_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_reminder_url(self, reminder_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
         """
@@ -379,7 +378,7 @@ class BaseAPIService(object):
         url += '/reminders'
         if reminder_id is not None:
             url += '/%s' % (reminder_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_tags_url(self, tag_id=None, format=None):
         """
@@ -393,7 +392,7 @@ class BaseAPIService(object):
         url += '/taggings'
         if tag_id is not None:
             url += '/%s' % (tag_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_sources_url(self, source_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
         """
@@ -407,7 +406,7 @@ class BaseAPIService(object):
         url += '/sources'
         if source_id is not None:
             url += '/%s' % (source_id)
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     def _build_search_url(self, type, format):
         if type == 'contacts':
@@ -419,7 +418,7 @@ class BaseAPIService(object):
         else:
             raise ValueError("Invalid search type.")
         url += '/search'
-        return self._format_url(url, format)
+        return self._apply_format(url, format)
 
     ##########################
     # Deals Functions
@@ -471,8 +470,7 @@ class BaseAPIService(object):
         tags: comma separated string of tags. Eg. 'platinum,trial_period'
         action: one of the following: 'add', 'remove', 'replace'
         """
-        deal_data = self._get_deal(deal_id=deal_id, force_json=True)
-        deal_data_dict = json.loads(deal_data)
+        deal_data_dict = self._get_data(self._build_deal_url(deal_id=deal_id, format='.json'))
         old_tags = deal_data_dict['deal']['deal_tags'].split(', ')
         new_tags_list = tags.split(',')
 
