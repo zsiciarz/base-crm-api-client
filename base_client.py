@@ -77,14 +77,24 @@ def _list_to_tags(l):
 
 class BaseAPIService(object):
 
-    def __init__(self, email, password, format='json'):
+    def __init__(self, email, password, format='native'):
         """
         Gets a login token for base, and set the format for response objects.
-        format =    'json' (default)
+        format =    'native' (default)
+                    'json'
                     'xml'
         """
-        self.base_url = 'https://sales.futuresimple.com/api/v1/'
 
+        self.resource = dict()
+        self.resource['app'] = 'https://app.futuresimple.com/api/v1'
+        self.resource['common'] = 'https://common.futuresimple.com/api/v1'
+        self.resource['core'] = 'https://core.futuresimple.com/api/v1'
+        self.resource['crm'] = 'https://crm.futuresimple.com/api/v1'
+        self.resource['leads'] = 'https://leads.futuresimple.com/api/v1'
+        self.resource['sales'] = 'https://sales.futuresimple.com/api/v1'
+
+        if format == 'native':
+            self.format = 'native'
         if format == 'json':
             self.format = '.json'
         elif format == 'xml':
@@ -98,7 +108,7 @@ class BaseAPIService(object):
             self.auth_failed = True
         else:
             # Set URL header for future requests
-            self.header = {"X-Pipejump-Auth": self.token}
+            self.header = {"X-Pipejump-Auth": self.token, "X-Futuresimple-Token": self.token}
             self.auth_failed = False
 
     ##########################
@@ -108,14 +118,14 @@ class BaseAPIService(object):
         """
         Passes email and password to base api and returns login token.
         """
-        auth_url = 'authentication.json'
+        auth_url = '/authentication.json'
         params = urllib.urlencode({
             'email': email,
             'password': password,
         })
 
         try:
-            data = urllib2.urlopen(self.base_url + auth_url, params).read()
+            data = urllib2.urlopen(self.resource['sales'] + auth_url, params).read()
         except urllib2.HTTPError, e:
             return ("ERROR", "HTTP: %s" % str(e))
         except urllib2.URLError, e:
@@ -136,15 +146,212 @@ class BaseAPIService(object):
         """
         Get current account.
         """
-        account_url = 'account' + self.format
+        account_url = '/account' + self.format
 
-        url = self.base_url + account_url
+        url = self.resource['sales'] + account_url
 
         req = urllib2.Request(url, headers=self.header)
         response = urllib2.urlopen(req)
         data = response.read()
 
         return data
+
+    ##########################
+    # Helper Functions
+    ##########################
+    def _get_data(self, full_url):
+        """
+        This function submits the url using GET and returns the data for the requested URL.  If the format is set to
+        'native', the function assumes the URL is set to json and converts the response using loads()
+        """
+        print 'Loading URL %s' % (full_url)
+        req = urllib2.Request(full_url, headers=self.header)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        if self.format == 'native':
+            data = json.loads(data)
+        return data
+
+    def _post_data(self, full_url, params):
+        """
+        This function submits the params to the url using POST and returns the data for the requested URL.  If the
+        format is set to 'native', the function assumes the URL is set to json and converts the response using loads()
+        """
+        req = urllib2.Request(full_url, data=params, headers=self.header)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        if self.convert_to_native:
+            data = json.loads(data)
+        return data
+
+    def _put_data(self, full_url, params):
+        """
+        This function submits the params to the url using PUT and returns the data for the requested URL.  If the format
+        is set to 'native', the function assumes the URL is set to json and converts the response using loads()
+        """
+        req = urllib2.Request(full_url, data=params, headers=self.header)
+        req.get_method = lambda: 'PUT'
+        response = urllib2.urlopen(req)
+        data = response.read()
+        if self.convert_to_native:
+            data = json.loads(data)
+        return data
+
+    def _format_url(self, url, format=None):
+        """
+        This function appends an appropriate extension telling the BaseCRM API to respond in a particular format. The
+        'native' format uses json.
+        """
+        if format is not None:
+            if format == '.json' or format == 'native':
+                url += '%s' % ('.json')
+            elif format == '.xml':
+                url += '%s' % ('.xml')
+        return url
+
+    ##########################
+    # URL Builders
+    ##########################
+    def _build_deal_url(self, deal_id=None, contact_id=None, format=None):
+        """
+        Returns a URL to obtain either all deals (deal_id=None) or a specific deal (deal_id=integer). For a list of
+        deals nested under another object, do not include a deal_id and include one (and only one) of the following
+        parent identifiers:
+         - contact_id
+        If this is the terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        if contact_id is not None:
+            url = self._build_contact_url(contact_id)
+        else:
+            url = self.resource['sales']
+        url += '/deals'
+        if deal_id is not None:
+            url += '/%s' % (deal_id)
+        return self._format_url(url, format)
+
+    def _build_lead_url(self, lead_id = None, format=None):
+        """
+        Returns a URL to obtain either all leads (lead_id=None) or a specific lead (lead_id=integer). If this is the
+        terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        url = self.resource['leads'] + '/leads'
+        if lead_id is not None:
+            url += '/%s' % (lead_id)
+        return self._format_url(url, format)
+
+    def _build_contact_url(self, contact_id = None, company_id = None, deal_id = None, format=None):
+        """
+        Returns a URL to obtain either all contacts (contact_id=None) or a specific contact (contact_id=integer). For a
+        list of contacts nested under another object, do not include a contact_id and include one (and only one) of the
+        following parent identifiers:
+         - company_id (technically, this is the ID of the BaseCRM contact object for the company)
+         - deal_id
+        If this is the terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        if deal_id is not None:
+            url = self._build_deal_url(deal_id)
+        elif company_id is not None:
+            url = self._build_contact_url(company_id)
+        else:
+            url = self.resource['sales'] + '/contacts'
+        # Build URL through nested checks
+        if contact_id is not None:
+            if company_id is None:
+                url += '/%s' % (contact_id)
+            else:
+                raise ValueError("Cannot include both a contact and company ID.")
+        return self._format_url(url, format)
+
+    def _build_note_url(self, note_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+        """
+        Returns a URL to obtain either all notes (note_id=None) or a specific note (note_id=integer). For a
+        list of notes nested under another object, do not include a note_id and include one (and only one) of the
+        following parent identifiers:
+         - contact_id
+         - lead_id
+         - deal_id
+        If this is the terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        if contact_id is not None:
+            url = self._build_contact_url(contact_id)
+        elif lead_id is not None:
+            url = self._build_lead_url(lead_id)
+        elif deal_id is not None:
+            url = self._build_deal_url(deal_id)
+        else:
+            raise ValueError("Notes URL constructor requires a valid object (lead, contact, deal).")
+        # Add note data
+        url += '/notes'
+        if note_id is not None:
+            url += '/%s' % (note_id)
+        return self._format_url(url, format)
+
+    def _build_reminder_url(self, reminder_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+        """
+        Returns a URL to obtain either all reminders (reminder_id=None) or a specific reminder (reminder_id=integer).
+        For a list of reminders nested under another object, do not include a reminder_id and include one (and only one)
+        of the following parent identifiers:
+         - contact_id
+         - lead_id
+         - deal_id
+        If this is the terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        if contact_id is not None:
+            url = self._build_contact_url(contact_id)
+        elif lead_id is not None:
+            url = self._build_lead_url(lead_id)
+        elif deal_id is not None:
+            url = self._build_deal_url(deal_id)
+            # Add reminder data
+        else:
+            raise ValueError("Reminders URL constructor requires a valid object (lead, contact, deal).")
+        url += '/reminders'
+        if reminder_id is not None:
+            url += '/%s' % (reminder_id)
+        return self._format_url(url, format)
+
+    def _build_tags_url(self, tag_id=None, format=None):
+        """
+        Returns a URL to obtain either all tags (tag_id=None) or a specific tag (tag_id=integer). If this is the
+        terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        url = self.resource['tags']
+        url += '/taggings'
+        if tag_id is not None:
+            url += '/%s' % (tag_id)
+        return self._format_url(url, format)
+
+    def _build_sources_url(self, source_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+        """
+        Returns a URL to obtain either all sources (source_id=None) or a specific source (source_id=integer). If this is
+        the terminal object, include a format:
+         - '.json'
+         - '.xml'
+         - 'native'
+        """
+        url = self.resource['sales']
+        url += '/sources'
+        if source_id is not None:
+            url += '/%s' % (source_id)
+        return self._format_url(url, format)
 
     ##########################
     # Deals Functions
@@ -156,26 +363,21 @@ class BaseAPIService(object):
             page = the set of deals to return. 1 (default) returns the first 20.
             stage = the stage of deals to return - see DEAL_STAGES list for details.
         """
-        deals_url = 'deals' + self.format
-        url = self.base_url + deals_url
+        url = self._build_deal_url(format=self.format)
+        # Append parameters
         params = urllib.urlencode({
             'page': page,
             'stage': stage,
-        })
-
+            })
         full_url = url + '?' + params
-
-        req = urllib2.Request(full_url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
+        return self._get_data(full_url)
 
     def get_deal(self, deal_id):
         """
         Gets the deal with the given deal_id. Returns the deal info.
         """
-        return self._get_deal(deal_id=deal_id)
+        full_url = self._build_deal_url(deal_id=deal_id, format=self.format)
+        return self._get_data(full_url)
 
     def create_deal(self, deal_info):
         """
@@ -183,7 +385,7 @@ class BaseAPIService(object):
         Proper parameters are shown in the DEAL_PARAMS dictionary.
         Returns a json or xml reponse.
         """
-        return self._post_deal(deal_info=deal_info)
+        return self._upsert_deal(deal_info=deal_info)
 
     def update_deal(self, deal_info, deal_id):
         """
@@ -191,11 +393,11 @@ class BaseAPIService(object):
         Proper parameters are shown in the DEAL_PARAMS dictionary.
         Returns a json or xml response.
         """
-        return self._post_deal(deal_info=deal_info, deal_id=deal_id)
+        return self._upsert_deal(deal_info=deal_info, deal_id=deal_id)
 
     def update_deal_tags(self, deal_id, tags, action='add'):
         """
-        Adds, removes, or relplaces tags for a deal.  Returns a json or xml response.
+        Adds, removes, or replaces tags for a deal.  Returns a json or xml response.
         Arguments:
         deal_id: The base id of the deal that we want to work with
         tags: comma separated string of tags. Eg. 'platinum,trial_period'
@@ -220,36 +422,18 @@ class BaseAPIService(object):
 
         return self.update_deal(deal_info={'deal_tags': new_tags}, deal_id=deal_id)
 
-    def _get_deal(self, deal_id, force_json=False):
-        """
-        Gets the deal with the given deal_id.  Returns the deal info.
-        Allows for forcing of json data if we need to update specific fields.
-        """
-        if force_json:
-            deal_url = 'deals/%s%s' % (deal_id, '.json')
-        else:
-            deal_url = 'deals/%s%s' % (deal_id, self.format)
-
-        url = self.base_url + deal_url
-        req = urllib2.Request(url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
-
-    def _post_deal(self, deal_info={}, deal_id=None):
+    def _upsert_deal(self, deal_info={}, deal_id=None):
         """
         PRIVATE FUNCTION:
         Creates a new deal if deal_id = None.
         Otherwise, edits the deal with the given deal_id.
         """
-
-        deals_url = 'deals'
+        deals_url = '/deals'
         if deal_id != None:
             deals_url += '/%s' % str(deal_id)
         deals_url += self.format
 
-        url = self.base_url + deals_url
+        url = self.resource['sales'] + deals_url
 
         if deal_info == {} or (('name' not in deal_info.keys() \
                 or 'entity_id' not in deal_info.keys()) and deal_id == None):
@@ -273,13 +457,32 @@ class BaseAPIService(object):
 
         return data
 
+    def get_deal_notes(self, deal_id, page=0):
+        """
+        Gets deal notes.
+        """
+        url = self._build_note_url(deal_id=deal_id, format=self.format)
+        # Append parameters
+        params = urllib.urlencode({
+            'page': page,
+            })
+        full_url = url + '?' + params
+        return self._get_data(full_url)
+
+    def get_deal_note(self, deal_id, note_id):
+        """
+        Gets deal object.
+        """
+        full_url = self._build_note_url(note_id=note_id, deal_id=deal_id, format=self.format)
+        return self._get_data(full_url)
+
     def create_deal_note(self, deal_id, note_content):
         """
         Creates a note associated with a specific deal (defined by Base's unique deal_id)
         with the content note_content.
         Returns a json or xml response.
         """
-        return self._post_deal_note(deal_id=deal_id, note_content=note_content)
+        return self._upsert_deal_note(deal_id=deal_id, note_content=note_content)
 
     def update_deal_note(self, deal_id, note_content, note_id):
         """
@@ -287,9 +490,9 @@ class BaseAPIService(object):
         with the content note_content.
         Returns a json or xml response.
         """
-        return self._post_deal_note(deal_id=deal_id, note_content=note_content, note_id=note_id)
+        return self._upsert_deal_note(deal_id=deal_id, note_content=note_content, note_id=note_id)
 
-    def _post_deal_note(self, deal_id, note_content='', note_id=None):
+    def _upsert_deal_note(self, deal_id, note_content='', note_id=None):
         """
         PRIVATE FUNCTION
         Creates a new note for a given deal_id with content note_content, if note_id == None.
@@ -301,7 +504,7 @@ class BaseAPIService(object):
             url_base_template += '/%s' % str(note_id)
         url_base_template += self.format
 
-        url = self.base_url + url_base_template
+        url = self.resource['sales'] + url_base_template
 
         params = urllib.urlencode({'note[content]': unicode(note_content).encode('utf-8')})
 
@@ -318,27 +521,24 @@ class BaseAPIService(object):
     ##########################
     def get_contacts(self, page=1):
         """
-        Gets contact objects.
+        Gets contact objects in batches of 20.
+        Arguments:
+            page = the set of contacts to return. 1 (default) returns the first 20.
         """
-        contacts_url = 'contacts' + self.format
-        url = self.base_url + contacts_url
+        url = self._build_contact_url(format=self.format)
+        # Append parameters
         params = urllib.urlencode({
             'page': page,
-        })
-        # Append parameters
+            })
         full_url = url + '?' + params
-
-        req = urllib2.Request(full_url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
+        return self._get_data(full_url)
 
     def get_contact(self, contact_id):
         """
-        Gets the contact with the given contact_id.  Returns teh contact info.
+        Gets the contact with the given contact_id. Returns the contact info.
         """
-        return self._get_contact(contact_id=contact_id)
+        full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
+        return self._get_data(full_url)
 
     def create_contact(self, contact_info, person=True):
         """
@@ -346,7 +546,15 @@ class BaseAPIService(object):
         Assumes the contact is a person.  If the contact is a company, use person=False
         Returns a json or xml response.
         """
-        return self._post_contact(contact_info=contact_info, contact_id=None, person=person)
+        return self._upsert_contact(contact_info=contact_info, contact_id=None, person=person)
+
+    def create_contact_new(self, contact_info, person=True):
+        """
+        Creates a new contact based on contact_info with fields shown in CONTACT_PARAMS.
+        Assumes the contact is a person.  If the contact is a company, use person=False
+        Returns a json or xml response.
+        """
+        return self._upsert_contact_new(contact_info=contact_info, contact_id=None, person=person)
 
     def update_contact(self, contact_info, contact_id, person=True):
         """
@@ -354,18 +562,17 @@ class BaseAPIService(object):
         Assumes the contact is a person.  If the contact is a company, use person=False
         Returns a json or xml response.
         """
-        return self._post_contact(contact_info=contact_info, contact_id=contact_id, person=person)
+        return self._upsert_contact(contact_info=contact_info, contact_id=contact_id, person=person)
 
     def update_contact_tags(self, contact_id, tags, action='add'):
         """
-        Adds, removes, or relplaces tags for a contact.  Returns a json or xml response.
+        Adds, removes, or replaces tags for a contact.  Returns a json or xml response.
         Arguments:
         contact_id: The base id of the contact that we want to work with
         tags: comma separated string of tags. Eg. 'platinum,trial_period'
         action: one of the following: 'add', 'remove', 'replace'
         """
-        contact_data = self._get_contact(contact_id=contact_id, force_json=True)
-        contact_data_dict = json.loads(contact_data)
+        contact_data_dict = self._get_data(self._build_contact_url(contact_id=contact_id, format='native'))
         old_tags = contact_data_dict['contact']['tags_joined_by_comma'].split(', ')
         new_tags_list = tags.split(',')
 
@@ -383,37 +590,19 @@ class BaseAPIService(object):
 
         person = not contact_data_dict['contact']['is_organisation']
 
-        return self.update_contact(contact_info={'tag_list': new_tags}, contact_id=contact_id,
-            person=person)
+        return self.update_contact(contact_info={'tag_list': new_tags}, contact_id=contact_id, person=person)
 
-    def _get_contact(self, contact_id, force_json=False):
-        """
-        Gets the contact with the given contact_id.  Returns the contact info.
-        Allows for forcing of json data if we need to update specific fields.
-        """
-        if force_json:
-            contact_url = 'contacts/%s%s' % (contact_id, '.json')
-        else:
-            contact_url = 'contacts/%s%s' % (contact_id, self.format)
-
-        url = self.base_url + contact_url
-        req = urllib2.Request(url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
-
-    def _post_contact(self, contact_info={}, contact_id=None, person=True):
+    def _upsert_contact(self, contact_info={}, contact_id=None, person=True):
         """
         Creates a new contact if contact_id == None.
         Otherwise, edits contact with the given id.
         """
-        contacts_url = 'contacts'
+        contacts_url = '/contacts'
         if contact_id != None:
             contacts_url += '/%s' % str(contact_id)
         contacts_url += self.format
 
-        url = self.base_url + contacts_url
+        url = self.resource['sales'] + contacts_url
 
         CONTACT_PARAMS['is_organisation'] = 'false'
         if not person:
@@ -445,13 +634,65 @@ class BaseAPIService(object):
 
         return data
 
+    def _upsert_contact_new(self, contact_info={}, contact_id=None, person=True):
+        """
+        Creates a new contact if contact_id == None.
+        Otherwise, edits contact with the given id.
+        """
+        full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
+
+        CONTACT_PARAMS['is_organisation'] = 'false'
+        if not person:
+            CONTACT_PARAMS['is_organisation'] = 'true'
+
+        # If we are creating a new contact, we must have name and last_name parameters
+        # and we always must have some parameter
+        if contact_info == {} or\
+           (contact_id == None and 'name' not in contact_info.keys() and
+            'last_name' not in contact_info.keys()):
+            return
+
+        final_params = {}
+
+        for key in contact_info.keys():
+            if key not in CONTACT_PARAMS.keys():
+                return
+            else:
+                final_params['contact[' + key + ']'] = contact_info[key]
+
+        params = urllib.urlencode(_unicode_dict(final_params))
+
+        if contact_id is None:
+            return self._post_data(full_url, params)
+        else:
+            return self._put_data(full_url, params)
+
+    def get_contact_notes(self, contact_id, page=0):
+        """
+        Gets contact notes.
+        """
+        url = self._build_note_url(contact_id=contact_id, format=self.format)
+        # Append parameters
+        params = urllib.urlencode({
+            'page': page,
+            })
+        full_url = url + '?' + params
+        return self._get_data(full_url)
+
+    def get_contact_note(self, contact_id, note_id):
+        """
+        Gets contact object.
+        """
+        full_url = self._build_note_url(note_id=note_id, contact_id=contact_id, format=self.format)
+        return self._get_data(full_url)
+
     def create_contact_note(self, contact_id, note_content):
         """
         Creates a note associated with a specific contact (defined by Base's unique contact_id)
         with the content note_content.
         Returns a json or xml response.
         """
-        return self._post_contact_note(contact_id=contact_id, note_content=note_content)
+        return self._upsert_contact_note(contact_id=contact_id, note_content=note_content)
 
     def update_contact_note(self, contact_id, note_content, note_id):
         """
@@ -459,21 +700,21 @@ class BaseAPIService(object):
         with the content note_content.
         Returns a json or xml response.
         """
-        return self._post_contact_note(contact_id=contact_id, note_content=note_content, note_id=note_id)
+        return self._upsert_contact_note(contact_id=contact_id, note_content=note_content, note_id=note_id)
 
-    def _post_contact_note(self, contact_id, note_content='', note_id=None):
+    def _upsert_contact_note(self, note_content='', contact_id, note_id=None):
         """
         PRIVATE FUNCTION
         Creates a new note for a given contact_id with content note_content, if note_id == None.
         Otherwise, edits the note with the given note_id.
         """
 
-        url_base_template = 'contacts/%s/notes' % str(contact_id)
+        url_base_template = '/contacts/%s/notes' % str(contact_id)
         if note_id != None:
             url_base_template += '/%s' % str(note_id)
         url_base_template += self.format
 
-        url = self.base_url + url_base_template
+        url = self.resource['sales'] + url_base_template
 
         params = urllib.urlencode({'note[content]': unicode(note_content).encode('utf-8')})
 
@@ -486,16 +727,59 @@ class BaseAPIService(object):
         return data
 
     ##########################
+    # Lead Functions
+    ##########################
+    def get_leads(self, page=0):
+        """
+        Gets lead objects in batches of 20.
+        Arguments:
+            page = the set of deals to return. 0 (default) returns the first 20.
+        """
+        url = self._build_lead_url(format=self.format)
+        # Append parameters
+        params = urllib.urlencode({
+            'page': page,
+            })
+        full_url = url + '?' + params
+        return self._get_data(full_url)
+
+    def get_lead(self, lead_id):
+        """
+        Gets the deal with the given deal_id. Returns the deal info.
+        """
+        full_url = self._build_lead_url(lead_id=lead_id, format=self.format)
+        return self._get_data(full_url)
+
+    def get_lead_notes(self, lead_id, page=0):
+        """
+        Gets lead notes.
+        """
+        url = self._build_note_url(lead_id=lead_id, format=self.format)
+        # Append parameters
+        params = urllib.urlencode({
+            'page': page,
+            })
+        full_url = url + '?' + params
+        return self._get_data(full_url)
+
+    def get_lead_note(self, lead_id, note_id):
+        """
+        Gets lead object.
+        """
+        full_url = self._build_note_url(note_id=note_id, lead_id=lead_id, format=self.format)
+        return self._get_data(full_url)
+
+    ##########################
     # Sources Functions
     ##########################
     def get_sources(self, other=0):
         """
-        Gets deal sources.
+        Gets contact sources.
         Argument:
             other: default to 0.  If 1, retrieves sources added by other users in the account.
         """
-        sources_url = 'sources' + self.format
-        url = self.base_url + sources_url
+        sources_url = '/sources' + self.format
+        url = self.resource['sales'] + sources_url
         if other == 1:
             params = urllib.urlencode({
                 'other': other,
@@ -510,3 +794,4 @@ class BaseAPIService(object):
         data = response.read()
 
         return data
+
