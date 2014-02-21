@@ -24,56 +24,6 @@ import json
 
 logger = logging.getLogger(__name__)
 
-CONTACT_PARAMS = {
-    'name': '',
-    'last_name': '',
-    'first_name': '',
-    'is_organisation': '',
-    'contact_id': '',
-    'email': '',
-    'phone': '',
-    'mobile': '',
-    'twitter': '',
-    'skype': '',
-    'facebook': '',
-    'linkedin': '',
-    'address': '',
-    'city': '',
-    'country': '',
-    'title': '',
-    'description': '',
-    'industry': '',
-    'website': '',
-    'fax': '',
-    'tag_list': '',
-    'private': '',
-}
-
-DEAL_PARAMS = {
-    'name': '',
-    'entity_id': '',
-    'scope': '',
-    'hot': 'false',
-    'deal_tags': '',
-    'contact_ids': '',
-    'source_id': '',
-    'stage': '',
-}
-
-DEAL_STAGES = [
-    'incoming',
-    'qualified',
-    'quote',
-    'custom1',
-    'custom2',
-    'custom3',
-    'closure',
-    'won',
-    'lost',
-    'unqualified',
-]
-
-
 def _unicode_dict(d):
     new_dict = {}
     for k, v in d.iteritems():
@@ -94,6 +44,112 @@ def _list_to_tags(l):
 
 
 class BaseAPIService(object):
+
+    CONTACT_FILTERS = [
+        'user_id',
+        'city', # All lower
+        'region', # All lower
+        'zip', # NOT zip_code as listed in aggregate
+        'country', # All lower
+        'tag_ids', # Comma (%2C) separated in URL
+        'tags', # All lower; Comma (%2C) separated in URL
+    ]
+
+    CONTACT_SORTS = [
+        # Verified not available: organisation_name, mobile, overdue_tasks, phone, unread_emails
+        # Included in return list:
+        'last_name',
+        'first_name',
+        'user_id',
+        'account_id',
+        'title',
+        'created_at',
+        'is_sales_account',
+        'id',
+        'is_organisation',
+        'email',
+        'name',
+        # In sort_value if submitted, otherwise not returned:
+        'last_activity',
+        ]
+
+    DEAL_FILTERS = [
+        'currency',
+        'stage',
+        'tag_ids',
+        # tags (e.g. tag text) not available in deals
+        'user_id',
+        'hot',
+        ]
+
+    DEAL_SORTS = [
+        'account_id',
+        'added_on',
+        'created_at',
+        'currency',
+        'entity_id',
+        'hot',
+        'id',
+        'last_activity', # Alias for (otherwise not available) updated_at
+        'last_stage_change_at',
+        'loss_reason_id',
+        'name',
+        'scope',
+        'source_id',
+        'stage_code',
+        'user_id'
+        # In sort_value if submitted, otherwise not returned:
+        'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
+    ]
+
+    CONTACT_PARAMS = {
+        'name': '',
+        'last_name': '',
+        'first_name': '',
+        'is_organisation': '',
+        'contact_id': '',
+        'email': '',
+        'phone': '',
+        'mobile': '',
+        'twitter': '',
+        'skype': '',
+        'facebook': '',
+        'linkedin': '',
+        'address': '',
+        'city': '',
+        'country': '',
+        'title': '',
+        'description': '',
+        'industry': '',
+        'website': '',
+        'fax': '',
+        'tag_list': '',
+        'private': '',
+        }
+
+    DEAL_PARAMS = {
+        'name': '',
+        'entity_id': '',
+        'scope': '',
+        'hot': 'false',
+        'deal_tags': '',
+        'contact_ids': '',
+        'source_id': '',
+        'stage': '',
+        }
+
+    DEAL_STAGES = [
+        'incoming',
+        'qualified',
+        'quote',
+        'custom1',
+        'custom2',
+        'custom3',
+        'closure',
+        'won',
+        'lost',
+        'unqualified',
+        ]
 
     def __init__(self, email, password, format='native'):
         """
@@ -230,7 +286,7 @@ class BaseAPIService(object):
     ##########################
     # URL Builders
     ##########################
-    def _build_deal_url(self, deal_id=None, contact_id=None, format=None):
+    def _build_deal_url(self, deal_id=None, contact_id=None, format=None, base_url = None):
         """
         Returns a URL to obtain either all deals (deal_id=None) or a specific deal (deal_id=integer). For a list of
         deals nested under another object, do not include a deal_id and include one (and only one) of the following
@@ -371,6 +427,18 @@ class BaseAPIService(object):
             url += '/%s' % (source_id)
         return self._format_url(url, format)
 
+    def _build_search_url(self, type, format):
+        if type == 'contacts':
+            url = self.resource['crm'] + '/contacts'
+        elif type == 'leads':
+            url = self._build_lead_url()
+        elif type == 'deals':
+            url = self._build_deal_url()
+        else:
+            raise ValueError("Invalid search type.")
+        url += '/search'
+        return self._format_url(url, format)
+
     ##########################
     # Deals Functions
     ##########################
@@ -460,7 +528,7 @@ class BaseAPIService(object):
         final_params = {}
 
         for key in deal_info.keys():
-            if key not in DEAL_PARAMS.keys():
+            if key not in self.DEAL_PARAMS.keys():
                 return "%s is not a legal deal attribute" % key
             else:
                 final_params[key] = deal_info[key]
@@ -622,9 +690,9 @@ class BaseAPIService(object):
 
         url = self.resource['sales'] + contacts_url
 
-        CONTACT_PARAMS['is_organisation'] = 'false'
+        self.CONTACT_PARAMS['is_organisation'] = 'false'
         if not person:
-            CONTACT_PARAMS['is_organisation'] = 'true'
+            self.CONTACT_PARAMS['is_organisation'] = 'true'
 
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
@@ -636,7 +704,7 @@ class BaseAPIService(object):
         final_params = {}
 
         for key in contact_info.keys():
-            if key not in CONTACT_PARAMS.keys():
+            if key not in self.CONTACT_PARAMS.keys():
                 return
             else:
                 final_params['contact[' + key + ']'] = contact_info[key]
@@ -659,9 +727,9 @@ class BaseAPIService(object):
         """
         full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
 
-        CONTACT_PARAMS['is_organisation'] = 'false'
+        self.CONTACT_PARAMS['is_organisation'] = 'false'
         if not person:
-            CONTACT_PARAMS['is_organisation'] = 'true'
+            self.CONTACT_PARAMS['is_organisation'] = 'true'
 
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
@@ -673,7 +741,7 @@ class BaseAPIService(object):
         final_params = {}
 
         for key in contact_info.keys():
-            if key not in CONTACT_PARAMS.keys():
+            if key not in self.CONTACT_PARAMS.keys():
                 return
             else:
                 final_params['contact[' + key + ']'] = contact_info[key]
@@ -743,6 +811,38 @@ class BaseAPIService(object):
         data = response.read()
 
         return data
+
+    def search_contacts(self, filters=None, sort_field=None, sort_order='asc', tags_exclusivity='and'):
+        url = self._build_search_url('contact', self.format)
+
+        valid_params = {'using_search':False}
+        if filters is not None:
+            for key, value in filters:
+                if key in self.CONTACT_FILTERS:
+                    if key in ['tag_ids','tags']:
+                        valid_params[key] = ','.join(value)
+                        if tags_exclusivity in ['and','or']:
+                            valid_params['tags_exclusivity'] = tags_exclusivity
+                        else:
+                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
+                    else:
+                        valid_params[key] = value
+                else:
+                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
+        if sort_field is not None:
+            if sort_field in self.CONTACT_SORTS:
+                valid_params['sort_by'] = sort_field
+            else:
+                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
+            if sort_order in ['asc','desc']:
+                valid_params['sort_order'] = sort_order
+            else:
+                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
+
+    params = urllib.urlencode(valid_params)
+
+        full_url = url + '?' + params
+        return self._get_data(full_url)
 
     ##########################
     # Lead Functions
