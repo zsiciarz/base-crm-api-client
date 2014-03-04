@@ -1,9 +1,29 @@
-# Python Interactions with Base
+# Python Interactions with Base (MaxFeature)
+
+Introduction
+============
+
+Version 1 of the BaseCRM API Client focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an updated version of this branch can be found under the v1 branch.
+
+In early 2014, it became clear that FutureSimple was not keeping the API documents up to date:
+
+ - Zapier was able to detect New Objects (Contacts, Deals, Leads) and changes in Deal Stages.  While it was possible to detect these by brute force (e.g. pulling down all of these objects), it seemed unlikely that this approach was used.
+ - @claytondaley contacted FutureSimple to find out if searching was available through the API and was provided a URL example for an undocumented search capability.
+ - In light of this undocuented feature, @claytondaley reviewed the messages exchanged by the BaseCRM web interface and identified calls for lots of additioanl features:
+   - Count functions for various object types (avoiding the need to return a huge results document to check the metadata)
+   - Activities (emails, calls, tasks)
+   - Inbox Integration (inbox, sent, archived, and untracked emails)
+   - Lists of existing values for Cities, Regions, Countries, Zip_Codes, Stages, Loss Reasons, Currencies, and Statuses
+   - Calls that return a list of fields that are sortable and filterable
+   - Additional views for Deals like top_deals, total_pipeline, and deals/by_ids (supporting multiple ids)
+   - Configuration checks like integration status, voice and email preferences, etc.
+ 
+FutureSimple made it clear that the search function was not set in stone and the same likely applies to these additional features.  Users desiring officially supported features should build on the limited Version 1 branch.  Users willing to risk intermittent issues to take advantage of these advanced features should use the MaxFeature branch.
 
 How it works
 ============
 
-This client is meant to be as simple to use as possible, mimicking the GET/POST/PUT/DELETE requests documented in the [base api documentation](http://dev.futuresimple.com/api/overview).  Please review that documentation for required parameters 
+This client is meant to be as simple to use as possible, mimicking the GET/POST/PUT/DELETE requests documented in the.  Please review that documentation for required parameters 
 
 To set up a connection to base, simply run:
 
