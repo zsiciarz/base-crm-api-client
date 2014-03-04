@@ -349,6 +349,18 @@ class BaseAPIService(object):
 
         return url
 
+    def _build_search_url(self, type, format):
+        if type == 'contact':
+            url = self.resource['crm'] + '/contacts'
+        elif type == 'lead':
+            url = self._build_lead_url()
+        elif type == 'deal':
+            url = self._build_deal_url()
+        else:
+            raise ValueError("Invalid search type.")
+        url += '/search'
+        return self._apply_format(url, format)
+
     ##########################
     # Tags Functions
     ##########################
@@ -413,6 +425,54 @@ class BaseAPIService(object):
         'private',
         ]
 
+    CONTACT_FILTERS = [
+        'user_id',
+        'city', # All lower
+        'region', # All lower
+        'zip', # NOT zip_code as listed in aggregate
+        'country', # All lower
+        'tag_ids', # Comma (%2C) separated in URL
+        'tags', # All lower; Comma (%2C) separated in URL
+    ]
+
+    CONTACT_SORTS = [
+        # Verified not available: organisation_name, mobile, overdue_tasks, phone, unread_emails
+        # Included in return list:
+        'last_name',
+        'first_name',
+        'user_id',
+        'account_id',
+        'title',
+        'created_at',
+        'is_sales_account',
+        'id',
+        'is_organisation',
+        'email',
+        'name',
+        # In sort_value if submitted, otherwise not returned:
+        'last_activity',
+        'calls_to_action,first',
+        'calls_to_action,last'
+    ]
+
+    # Views
+    # https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
+    # https://app.futuresimple.com/apis/crm/api/v1/contacts/count.json?page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
+
+    # Related Parameters
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/cities
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/regions
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/countries
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/zip_codes
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?filterable=true
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?sortable=true
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_field_values/grouped.json
+
+    # https://app.futuresimple.com/apis/common/api/v1/feed/account_contacts_privacy.json
+
+    # Activities
+    # SEE ACTIVITIES SECTION
+
     def get_contacts(self, page=1):
         """
         Gets contact objects in batches of 20.
@@ -434,23 +494,37 @@ class BaseAPIService(object):
         full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
         return self._get_data(full_url)
 
-    # Views
-    # https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
-    # https://app.futuresimple.com/apis/crm/api/v1/contacts/count.json?page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
+    def search_contacts(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
+        url = self._build_search_url('contact', self.format)
 
-    # Related Parameters
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/cities
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/regions
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/countries
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/zip_codes
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?filterable=true
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?sortable=true
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_field_values/grouped.json
+        valid_params = {'page' : page,}
+        if filters is not None:
+            for key, value in filters.items():
+                if key in self.CONTACT_FILTERS:
+                    if key in ['tag_ids','tags']:
+                        valid_params[key] = ','.join(value)
+                        if tags_exclusivity in ['and','or']:
+                            valid_params['tags_exclusivity'] = tags_exclusivity
+                        else:
+                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
+                    else:
+                        valid_params[key] = value
+                else:
+                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
+        if sort_by is not None:
+            if sort_by in self.CONTACT_SORTS:
+                valid_params['sort_by'] = sort_by
+            else:
+                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
+            if sort_order in ['asc','desc']:
+                valid_params['sort_order'] = sort_order
+            else:
+                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
 
-    # https://app.futuresimple.com/apis/common/api/v1/feed/account_contacts_privacy.json
+        params = urllib.urlencode(valid_params)
 
-    # Activities
-    # SEE ACTIVITIES SECTION
+        full_url = url + '?' + params
+        return self._get_data(full_url)
 
     def create_contact(self, contact_info, person=True):
         """
@@ -705,6 +779,35 @@ class BaseAPIService(object):
         'unqualified',
         ]
 
+    DEAL_FILTERS = [
+        'currency',
+        'stage',
+        'tag_ids',
+        # tags (e.g. tag text) not available in deals
+        'user_id',
+        'hot',
+        ]
+
+    DEAL_SORTS = [
+        'account_id',
+        'added_on',
+        'created_at',
+        'currency',
+        'entity_id',
+        'hot',
+        'id',
+        'last_activity', # Alias for (otherwise not available) updated_at
+        'last_stage_change_at',
+        'loss_reason_id',
+        'name',
+        'scope',
+        'source_id',
+        'stage_code',
+        'user_id'
+        # In sort_value if submitted, otherwise not returned:
+        'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
+    ]
+
     # Views
     # https://app.futuresimple.com/apis/sales/api/v1/deals/by_ids.json?deal_ids=2049413%2C1283854%2C1283853%2C1283851&per_page=4
     # https://app.futuresimple.com/apis/sales/api/v1/deals.json?dont_scope_by_stage=true&deal_ids=1276628
@@ -755,6 +858,38 @@ class BaseAPIService(object):
         Gets the deal with the given deal_id. Returns the deal info.
         """
         full_url = self._build_deal_url(deal_id=deal_id, format=self.format)
+        return self._get_data(full_url)
+
+    def search_deals(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=1):
+        url = self._build_search_url('deal', self.format)
+
+        valid_params = {'page' : page,}
+        if filters is not None:
+            for key, value in filters.items():
+                if key in self.DEAL_FILTERS:
+                    if key in ['tag_ids','tags']:
+                        valid_params[key] = ','.join(value)
+                        if tags_exclusivity in ['and','or']:
+                            valid_params['tags_exclusivity'] = tags_exclusivity
+                        else:
+                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
+                    else:
+                        valid_params[key] = value
+                else:
+                    raise ValueError("%s is not a valid filter for a deal search" % (key))
+        if sort_by is not None:
+            if sort_by in self.DEAL_SORTS:
+                valid_params['sort_by'] = sort_by
+            else:
+                raise ValueError("%s is not a valid sort field for a deal search" % (key))
+            if sort_order in ['asc','desc']:
+                valid_params['sort_order'] = sort_order
+            else:
+                raise ValueError("%s is not a valid sort order for a deal search" % (sort_order))
+
+        params = urllib.urlencode(valid_params)
+
+        full_url = url + '?' + params
         return self._get_data(full_url)
 
     def create_deal(self, deal_info):
@@ -963,6 +1098,44 @@ class BaseAPIService(object):
     ##########################
     # Lead Functions
     ##########################
+    LEAD_FILTERS = [
+        'tag_ids',
+        'owner_id',
+        'status_id',
+        ]
+
+    LEAD_SORTS = [
+        'account_id',
+        'added_on',
+        'company_name',
+        'created_at',
+        'first_name',
+        'id',
+        'last_activity_date',
+        'last_activity', # Appears to be alias of last_activity_date
+        'last_name',
+        'owner_id',
+        'state',
+        'status_id',
+        'title',
+        #'tag_ids', # Accepted by API but non-functional
+        #'tags', # Accepted by API but non-functional
+        'user_id',
+        ]
+
+    # Views
+    # https://app.futuresimple.com/apis/leads/api/v1/leads.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true&using_search=false&page=0&converting=false
+    # https://app.futuresimple.com/apis/leads/api/v1/leads/search.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true
+
+    # Related Parameters
+    # https://app.futuresimple.com/apis/leads/api/v1/statuses.json
+
+    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields.json?sortable=true
+    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields/filterable.json
+
+    # Activities
+    # SEE ACTIVITIES SECTION
+
     def get_leads(self, page=0):
         """
         Gets lead objects in batches of 20.
@@ -984,18 +1157,37 @@ class BaseAPIService(object):
         full_url = self._build_lead_url(lead_id=lead_id, format=self.format)
         return self._get_data(full_url)
 
-    # Views
-    # https://app.futuresimple.com/apis/leads/api/v1/leads.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true&using_search=false&page=0&converting=false
-    # https://app.futuresimple.com/apis/leads/api/v1/leads/search.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true
+    def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
+        url = self._build_search_url('lead', self.format)
 
-    # Related Parameters
-    # https://app.futuresimple.com/apis/leads/api/v1/statuses.json
+        valid_params = {'page' : page,}
+        if filters is not None:
+            for key, value in filters.items():
+                if key in self.LEAD_FILTERS:
+                    if key in ['tag_ids','tags']:
+                        valid_params[key] = ','.join(value)
+                        if tags_exclusivity in ['and','or']:
+                            valid_params['tags_exclusivity'] = tags_exclusivity
+                        else:
+                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
+                    else:
+                        valid_params[key] = value
+                else:
+                    raise ValueError("%s is not a valid filter for a Lead search" % (key))
+        if sort_by is not None:
+            if sort_by in self.LEAD_SORTS:
+                valid_params['sort_by'] = sort_by
+            else:
+                raise ValueError("%s is not a valid sort field for a Lead search" % (key))
+            if sort_order in ['asc','desc']:
+                valid_params['sort_order'] = sort_order
+            else:
+                raise ValueError("%s is not a valid sort order for a Lead search" % (sort_order))
 
-    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields.json?sortable=true
-    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields/filterable.json
+        params = urllib.urlencode(valid_params)
 
-    # Activities
-    # SEE ACTIVITIES SECTION
+        full_url = url + '?' + params
+        return self._get_data(full_url)
 
     def get_lead_notes(self, lead_id, page=0):
         """
@@ -1102,201 +1294,4 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
     # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
-
-    ##########################
-    # Search Functions (beta)
-    # WARNING: Search functionality is undocumented and subject to change.
-    ##########################
-
-    CONTACT_FILTERS = [
-        'user_id',
-        'city', # All lower
-        'region', # All lower
-        'zip', # NOT zip_code as listed in aggregate
-        'country', # All lower
-        'tag_ids', # Comma (%2C) separated in URL
-        'tags', # All lower; Comma (%2C) separated in URL
-    ]
-
-    CONTACT_SORTS = [
-        # Verified not available: organisation_name, mobile, overdue_tasks, phone, unread_emails
-        # Included in return list:
-        'last_name',
-        'first_name',
-        'user_id',
-        'account_id',
-        'title',
-        'created_at',
-        'is_sales_account',
-        'id',
-        'is_organisation',
-        'email',
-        'name',
-        # In sort_value if submitted, otherwise not returned:
-        'last_activity',
-        'calls_to_action,first',
-        'calls_to_action,last'
-        ]
-
-    DEAL_FILTERS = [
-        'currency',
-        'stage',
-        'tag_ids',
-        # tags (e.g. tag text) not available in deals
-        'user_id',
-        'hot',
-        ]
-
-    DEAL_SORTS = [
-        'account_id',
-        'added_on',
-        'created_at',
-        'currency',
-        'entity_id',
-        'hot',
-        'id',
-        'last_activity', # Alias for (otherwise not available) updated_at
-        'last_stage_change_at',
-        'loss_reason_id',
-        'name',
-        'scope',
-        'source_id',
-        'stage_code',
-        'user_id'
-        # In sort_value if submitted, otherwise not returned:
-        'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
-    ]
-
-    LEAD_FILTERS = [
-        'tag_ids',
-        'owner_id',
-        'status_id',
-    ]
-
-    LEAD_SORTS = [
-        'account_id',
-        'added_on',
-        'company_name',
-        'created_at',
-        'first_name',
-        'id',
-        'last_activity_date',
-        'last_activity', # Appears to be alias of last_activity_date
-        'last_name',
-        'owner_id',
-        'state',
-        'status_id',
-        'title',
-        #'tag_ids', # Accepted by API but non-functional
-        #'tags', # Accepted by API but non-functional
-        'user_id',
-    ]
-
-    def _build_search_url(self, type, format):
-        if type == 'contact':
-            url = self.resource['crm'] + '/contacts'
-        elif type == 'lead':
-            url = self._build_lead_url()
-        elif type == 'deal':
-            url = self._build_deal_url()
-        else:
-            raise ValueError("Invalid search type.")
-        url += '/search'
-        return self._apply_format(url, format)
-
-    def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
-        url = self._build_search_url('lead', self.format)
-
-        valid_params = {'page' : page,}
-        if filters is not None:
-            for key, value in filters.items():
-                if key in self.LEAD_FILTERS:
-                    if key in ['tag_ids','tags']:
-                        valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
-                            valid_params['tags_exclusivity'] = tags_exclusivity
-                        else:
-                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
-                    else:
-                        valid_params[key] = value
-                else:
-                    raise ValueError("%s is not a valid filter for a Lead search" % (key))
-        if sort_by is not None:
-            if sort_by in self.LEAD_SORTS:
-                valid_params['sort_by'] = sort_by
-            else:
-                raise ValueError("%s is not a valid sort field for a Lead search" % (key))
-            if sort_order in ['asc','desc']:
-                valid_params['sort_order'] = sort_order
-            else:
-                raise ValueError("%s is not a valid sort order for a Lead search" % (sort_order))
-
-        params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + params
-        return self._get_data(full_url)
-
-    def search_contacts(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
-        url = self._build_search_url('contact', self.format)
-
-        valid_params = {'page' : page,}
-        if filters is not None:
-            for key, value in filters.items():
-                if key in self.CONTACT_FILTERS:
-                    if key in ['tag_ids','tags']:
-                        valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
-                            valid_params['tags_exclusivity'] = tags_exclusivity
-                        else:
-                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
-                    else:
-                        valid_params[key] = value
-                else:
-                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
-        if sort_by is not None:
-            if sort_by in self.CONTACT_SORTS:
-                valid_params['sort_by'] = sort_by
-            else:
-                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
-            if sort_order in ['asc','desc']:
-                valid_params['sort_order'] = sort_order
-            else:
-                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
-
-        params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + params
-        return self._get_data(full_url)
-
-    def search_deals(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=1):
-        url = self._build_search_url('deal', self.format)
-
-        valid_params = {'page' : page,}
-        if filters is not None:
-            for key, value in filters.items():
-                if key in self.DEAL_FILTERS:
-                    if key in ['tag_ids','tags']:
-                        valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
-                            valid_params['tags_exclusivity'] = tags_exclusivity
-                        else:
-                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
-                    else:
-                        valid_params[key] = value
-                else:
-                    raise ValueError("%s is not a valid filter for a deal search" % (key))
-        if sort_by is not None:
-            if sort_by in self.DEAL_SORTS:
-                valid_params['sort_by'] = sort_by
-            else:
-                raise ValueError("%s is not a valid sort field for a deal search" % (key))
-            if sort_order in ['asc','desc']:
-                valid_params['sort_order'] = sort_order
-            else:
-                raise ValueError("%s is not a valid sort order for a deal search" % (sort_order))
-
-        params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + params
-        return self._get_data(full_url)
 
