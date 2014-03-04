@@ -428,7 +428,7 @@ class BaseAPIService(object):
         deals_url = '/deals'
         if deal_id != None:
             deals_url += '/%s' % str(deal_id)
-        deals_url += self.format
+        deals_url = self._apply_format(deals_url, self.format)
 
         url = self.resource['sales'] + deals_url
 
@@ -499,7 +499,7 @@ class BaseAPIService(object):
         url_base_template = 'deals/%s/notes' % str(deal_id)
         if note_id != None:
             url_base_template += '/%s' % str(note_id)
-        url_base_template += self.format
+        url_base_template = self._apply_format(url_base_template, self.format)
 
         url = self.resource['sales'] + url_base_template
 
@@ -589,7 +589,7 @@ class BaseAPIService(object):
         contacts_url = '/contacts'
         if contact_id != None:
             contacts_url += '/%s' % str(contact_id)
-        contacts_url += self.format
+        contacts_url = self._apply_format(contacts_url, self.format)
 
         url = self.resource['sales'] + contacts_url
 
@@ -668,7 +668,7 @@ class BaseAPIService(object):
         url_base_template = '/contacts/%s/notes' % str(contact_id)
         if note_id != None:
             url_base_template += '/%s' % str(note_id)
-        url_base_template += self.format
+        url_base_template = self._apply_format(url_base_template, self.format)
 
         url = self.resource['sales'] + url_base_template
 
