@@ -37,6 +37,10 @@ Contacts (search)   beginning           2nd page
 Leads (search)      beginning           2nd page
 Deals (search)      duplicates 1        beginning
 
+Notes               TBD                 TBD
+Activities          TBD                 TBD
+Emails              TBD                 TBD
+
 """
 
 class BaseAPIService(object):
