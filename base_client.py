@@ -196,7 +196,7 @@ class BaseAPIService(object):
         req = urllib2.Request(full_url, data=params, headers=self.header)
         response = urllib2.urlopen(req)
         data = response.read()
-        if self.convert_to_native:
+        if self.format == 'native':
             data = json.loads(data)
         return data
 
@@ -209,7 +209,7 @@ class BaseAPIService(object):
         req.get_method = lambda: 'PUT'
         response = urllib2.urlopen(req)
         data = response.read()
-        if self.convert_to_native:
+        if self.format == 'native':
             data = json.loads(data)
         return data
 
