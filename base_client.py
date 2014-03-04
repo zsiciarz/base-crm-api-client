@@ -37,6 +37,7 @@ Contacts (search)   beginning           2nd page
 Leads (search)      beginning           2nd page
 Deals (search)      duplicates 1        beginning
 
+Tags                duplicates 1        beginning
 Notes               TBD                 TBD
 Activities          TBD                 TBD
 Emails              TBD                 TBD
@@ -86,14 +87,14 @@ class BaseAPIService(object):
         """
         Passes email and password to base api and returns login token.
         """
-        auth_url = '/authentication.json'
+        auth_url = self._build_resource('sales',1) + '/authentication.json'
         params = urllib.urlencode({
             'email': email,
             'password': password,
         })
 
         try:
-            data = urllib2.urlopen(self.resource['sales'] + auth_url, params).read()
+            data = urllib2.urlopen(auth_url, params).read()
         except urllib2.HTTPError, e:
             return ("ERROR", "HTTP: %s" % str(e))
         except urllib2.URLError, e:
@@ -106,23 +107,6 @@ class BaseAPIService(object):
             return ("ERROR", "Error: No Token Returned")
 
         return ("SUCCESS", token)
-
-    ##########################
-    # Accounts Functions
-    ##########################
-    def get_accounts(self):
-        """
-        Get current account.
-        """
-        account_url = '/account' + self.format
-
-        url = self.resource['sales'] + account_url
-
-        req = urllib2.Request(url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
 
     ##########################
     # Helper Functions
@@ -148,7 +132,7 @@ class BaseAPIService(object):
         req = urllib2.Request(full_url, data=params, headers=self.header)
         response = urllib2.urlopen(req)
         data = response.read()
-        if self.convert_to_native:
+        if self.format == 'native':
             data = json.loads(data)
         return data
 
@@ -161,7 +145,7 @@ class BaseAPIService(object):
         req.get_method = lambda: 'PUT'
         response = urllib2.urlopen(req)
         data = response.read()
-        if self.convert_to_native:
+        if self.format == 'native':
             data = json.loads(data)
         return data
 
@@ -188,7 +172,7 @@ class BaseAPIService(object):
         """
         return 'https://app.futuresimple.com/apis/%s/api/v%d' % (resource, version)
 
-    def _build_deal_url(self, deal_id=None, contact_id=None, format=None, base_url = None):
+    def _build_deal_url(self, deal_id=None, contact_id=None, format=None):
         """
         Returns a URL to obtain either all deals (deal_id=None) or a specific deal (deal_id=integer). For a list of
         deals nested under another object, do not include a deal_id and include one (and only one) of the following
@@ -200,7 +184,7 @@ class BaseAPIService(object):
         if contact_id is not None:
             url = self._build_contact_url(contact_id)
         else:
-            url = self.resource['sales']
+            url = self._build_resource('sales', 1)
         url += '/deals'
         if deal_id is not None:
             url += '/%s' % (deal_id)
@@ -212,7 +196,7 @@ class BaseAPIService(object):
         terminal object, include a format:
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
-        url = self.resource['leads'] + '/leads'
+        url = self._build_resource('leads', 1) + '/leads'
         if lead_id is not None:
             url += '/%s' % (lead_id)
         return self._apply_format(url, format)
@@ -232,7 +216,9 @@ class BaseAPIService(object):
         elif company_id is not None:
             url = self._build_contact_url(company_id)
         else:
-            url = self.resource['sales'] + '/contacts'
+            # https://app.futuresimple.com/apis/crm/api/v1/contacts.json
+            url = self._build_resource('crm', 1)
+            url += '/contacts'
         # Build URL through nested checks
         if contact_id is not None:
             if company_id is None:
@@ -297,8 +283,8 @@ class BaseAPIService(object):
         terminal object, include a format:
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
-        url = self.resource['tags']
-        url += '/taggings'
+        url = self._build_resource('tags',1)
+        url += '/tags'
         if tag_id is not None:
             url += '/%s' % (tag_id)
         return self._apply_format(url, format)
@@ -309,7 +295,7 @@ class BaseAPIService(object):
         the terminal object, include a format:
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
-        url = self.resource['sales']
+        url = self._build_resource('sales',1)
         url += '/sources'
         if source_id is not None:
             url += '/%s' % (source_id)
@@ -351,7 +337,7 @@ class BaseAPIService(object):
 
     def _build_search_url(self, type, format):
         if type == 'contact':
-            url = self.resource['crm'] + '/contacts'
+            url = self._build_resource('crm',1) + '/contacts'
         elif type == 'lead':
             url = self._build_lead_url()
         elif type == 'deal':
@@ -362,9 +348,22 @@ class BaseAPIService(object):
         return self._apply_format(url, format)
 
     ##########################
+    # Accounts Functions
+    ##########################
+    def get_accounts(self):
+        """
+        Get current account.
+        """
+        url = self._build_resource('sales',1)
+        url += '/account'
+        full_url = self._apply_format(url, self.format)
+
+        return self._get_data(full_url)
+
+    ##########################
     # Tags Functions
     ##########################
-    def get_tags(self, page=0):
+    def get_tags(self, app=0, page=1):
         """
         Gets tag objects in batches of 20.
         Arguments:
@@ -374,19 +373,29 @@ class BaseAPIService(object):
         # Append parameters
         params = urllib.urlencode({
             'page': page,
+            'app_id': app,
             })
         full_url = url + '?' + params
         return self._get_data(full_url)
 
-    # Contacts
-    # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=4
-    # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=7
+    def get_contact_tags(self, page=1):
+        """
+        Contact tags are generated by two values of app_id:
 
-    # Deals
-    # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=1
+        https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=4
+        https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=7
 
-    # Leads
-    # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=5
+        The difference is unclear so two functions (get_contact_tags and get_contact_tags_alt) are used.
+        """
+        return self.get_tags(4, page)
+    def get_contact_tags_alt(self, page=1):
+        return self.get_tags(7, page)
+    def get_deal_tags(self, page=1):
+        # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=1
+        return self.get_tags(1, page)
+    def get_lead_tags(self, page=1):
+        # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=5
+        return self.get_tags(5, page)
 
     ##########################
     # Tasks Functions
@@ -734,7 +743,7 @@ class BaseAPIService(object):
         https://app.futuresimple.com/apis/feeder/api/v1/feed/contact/40905809.json?timestamp=null&api_mailman=v2&only=Task
         """
         # Build base URL
-        url = self._build_activity_url(contact_id=contact_id, format)
+        url = self._build_activity_url(contact_id=contact_id, format=format)
 
         # Add appropriate parameters
         if params is None:
@@ -810,6 +819,7 @@ class BaseAPIService(object):
 
     # Views
     # https://app.futuresimple.com/apis/sales/api/v1/deals/by_ids.json?deal_ids=2049413%2C1283854%2C1283853%2C1283851&per_page=4
+    # https://app.futuresimple.com/apis/leads/api/v1/leads.json?ids=7787301&per_page=1
     # https://app.futuresimple.com/apis/sales/api/v1/deals.json?dont_scope_by_stage=true&deal_ids=1276628
     # https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
     # https://app.futuresimple.com/apis/sales/api/v1/deals/top_deals.json
@@ -1051,7 +1061,7 @@ class BaseAPIService(object):
         """
 
         # Build base URL
-        url = self._build_activity_url(deal_id=deal_id, format)
+        url = self._build_activity_url(deal_id=deal_id, format=format)
 
         # Add appropriate parameters
         if params is None:
@@ -1078,22 +1088,16 @@ class BaseAPIService(object):
         Argument:
             other: default to 0.  If 1, retrieves sources added by other users in the account.
         """
-        sources_url = '/sources' + self.format
-        url = self.resource['sales'] + sources_url
+        url = self._build_sources_url(format=self.format)
         if other == 1:
             params = urllib.urlencode({
                 'other': other,
                 })
         else:
             params = ''
-            # Append parameters
+        # Append parameters
         full_url = url + '?' + params
-
-        req = urllib2.Request(full_url, headers=self.header)
-        response = urllib2.urlopen(req)
-        data = response.read()
-
-        return data
+        return self._get_data(full_url)
 
     ##########################
     # Lead Functions
@@ -1231,7 +1235,7 @@ class BaseAPIService(object):
         """
 
         # Build base URL
-        url = self._build_activity_url(lead_id=lead_id, format)
+        url = self._build_activity_url(lead_id=lead_id, format=format)
 
         # Add appropriate parameters
         if params is None:
