@@ -545,14 +545,6 @@ class BaseAPIService(object):
         """
         return self._upsert_contact(contact_info=contact_info, contact_id=None, person=person)
 
-    def create_contact_new(self, contact_info, person=True):
-        """
-        Creates a new contact based on contact_info with fields shown in CONTACT_PARAMS.
-        Assumes the contact is a person.  If the contact is a company, use person=False
-        Returns a json or xml response.
-        """
-        return self._upsert_contact_new(contact_info=contact_info, contact_id=None, person=person)
-
     def update_contact(self, contact_info, contact_id, person=True):
         """
         Edits contact with the unique base_id based on contact_info with fields shown in CONTACT_PARAMS.
@@ -630,39 +622,6 @@ class BaseAPIService(object):
         data = response.read()
 
         return data
-
-    def _upsert_contact_new(self, contact_info={}, contact_id=None, person=True):
-        """
-        Creates a new contact if contact_id == None.
-        Otherwise, edits contact with the given id.
-        """
-        full_url = self._build_contact_url(contact_id=contact_id, format=self.format)
-
-        # If we are creating a new contact, we must have name and last_name parameters
-        # and we always must have some parameter
-        if contact_info == {} or\
-           (contact_id == None and 'name' not in contact_info.keys() and
-            'last_name' not in contact_info.keys()):
-            return
-
-        final_params = {}
-
-        final_params['is_organisation'] = 'false'
-        if not person:
-            final_params['is_organisation'] = 'true'
-
-        for key in contact_info.keys():
-            if key not in self.CONTACT_PARAMS:
-                return
-            else:
-                final_params['contact[' + key + ']'] = contact_info[key]
-
-        params = urllib.urlencode(_unicode_dict(final_params))
-
-        if contact_id is None:
-            return self._post_data(full_url, params)
-        else:
-            return self._put_data(full_url, params)
 
     def get_contact_notes(self, contact_id, page=0):
         """
