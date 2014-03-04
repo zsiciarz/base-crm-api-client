@@ -658,7 +658,7 @@ class BaseAPIService(object):
         """
         return self._upsert_contact_note(contact_id=contact_id, note_content=note_content, note_id=note_id)
 
-    def _upsert_contact_note(self, note_content='', contact_id, note_id=None):
+    def _upsert_contact_note(self, note_content, contact_id, note_id=None):
         """
         PRIVATE FUNCTION
         Creates a new note for a given contact_id with content note_content, if note_id == None.
