@@ -53,6 +53,8 @@ Deals Functions:
 * create_deal(deal_info)
 * update_deal(deal_info, deal_id)
 * update_deal_tags(deal_id, tags, action='add') (other actions are "remove" or "replace")
+* get_deal_notes(deal_id, page=0)
+* get_deal_note(deal_id, note_id)
 * create_deal_note(deal_id, note_content)
 * update_deal_note(self, deal_id, note_content, note_id)
 
@@ -62,11 +64,22 @@ Contacts Functions:
 * create_contact(self, contact_info, person=True)
 * update_contact(self, contact_info, contact_id, person=True)
 * update_contact_tags(contact_id, tags, action='add') (other actions are "remove" or "replace")
+* get_contact_notes(contact_id,  page=0)
+* get_contact_note(contact_id, note_id)
 * create_contact_note(self, contact_id, note_content)
 * update_contact_note(self, contact_id, note_content, note_id)
 
+Leads Functions:
+* get_leads(page=0)
+* get_lead(lead_id)
+* get_lead_notes(lead_id, page=0)
+* get_lead_note(lead_id, note_id)
+
 Sources Functions:
 * get_sources(self, other=0)
+
+Tags Functions:
+* get_tags(page=0)
 
 Ongoing Development:
 ====================
