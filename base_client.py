@@ -413,16 +413,10 @@ class BaseAPIService(object):
         full_url = self._build_note_url(note_id=note_id, format=self.format)
         return self._get_data(full_url)
 
+    def _update_note(self, note_id):
+        raise NotImplementedError()
+
     def _create_note(self, content, contact_id=None, deal_id=None, lead_id=None, format=None):
-        return self._create_note_legacy(content, contact_id=contact_id, deal_id=deal_id, lead_id=lead_id, format=format)
-
-    def _create_note_legacy(self, content, contact_id=None, deal_id=None, lead_id=None, format=None):
-        """
-        This function uses legacy URLs for note creation.
-        """
-        pass
-
-    def _create_note_new(self, content, contact_id=None, deal_id=None, lead_id=None, format=None):
         """
         BaseCRM UI POSTs to the URL
             https://app.futuresimple.com/apis/common/api/v1/notes.json
@@ -436,16 +430,16 @@ class BaseAPIService(object):
         but this client gets a 500 Internal Server Error like due to either the X-CSRF-Token-Signature or Referer
         """
         final_params = dict()
-        final_params['content'] = content
+        final_params['note[content]'] = content
         if contact_id is not None:
-            final_params['noteable_type'] = 'Contact'
-            final_params['noteable_id'] = contact_id
+            final_params['note[noteable_type]'] = 'Contact'
+            final_params['note[noteable_id]'] = contact_id
         elif deal_id is not None:
-            final_params['noteable_type'] = 'Deal'
-            final_params['noteable_id'] = deal_id
+            final_params['note[noteable_type]'] = 'Deal'
+            final_params['note[noteable_id]'] = deal_id
         elif lead_id is not None:
-            final_params['noteable_type'] = 'Lead'
-            final_params['noteable_id'] = lead_id
+            final_params['note[noteable_type]'] = 'Lead'
+            final_params['note[noteable_id]'] = lead_id
         url_params = urllib.urlencode(final_params)
 
         url = self._build_note_url(format=format)
@@ -684,13 +678,13 @@ class BaseAPIService(object):
     def get_contact_notes(self, contact_id, page=0):
         return self._get_notes(contact_id=contact_id, page=page, format=self.format)
 
-    def create_contact_note(self, contact_id, note_content):
+    def create_contact_note(self, contact_id, content):
         """
         Creates a note associated with a specific contact (defined by Base's unique contact_id)
-        with the content note_content.
+        with the content 'content'.
         Returns a json or xml response.
         """
-        return self._upsert_contact_note(contact_id=contact_id, note_content=note_content)
+        return self._create_note(content=content, contact_id=contact_id)
 
     def update_contact_note(self, contact_id, note_content, note_id):
         """
@@ -969,13 +963,13 @@ class BaseAPIService(object):
         full_url = self._build_note_url(note_id=note_id, deal_id=deal_id, format=self.format)
         return self._get_data(full_url)
 
-    def create_deal_note(self, deal_id, note_content):
+    def create_deal_note(self, deal_id, content):
         """
         Creates a note associated with a specific deal (defined by Base's unique deal_id)
-        with the content note_content.
+        with the content 'content'.
         Returns a json or xml response.
         """
-        return self._upsert_deal_note(deal_id=deal_id, note_content=note_content)
+        return self._create_note(content=content, deal_id=deal_id)
 
     def update_deal_note(self, deal_id, note_content, note_id):
         """
@@ -1166,6 +1160,14 @@ class BaseAPIService(object):
 
     def get_lead_notes(self, lead_id, page=0):
         return self._get_notes(lead_id=lead_id, page=page, format=self.format)
+    def create_lead_note(self, lead_id, content):
+        """
+        Creates a note associated with a specific deal (defined by Base's unique deal_id)
+        with the content 'content'.
+        Returns a json or xml response.
+        """
+        return self._create_note(content=content, lead_id=lead_id)
+
 
     # Feed formatted
     def get_lead_feed(self, lead_id):
