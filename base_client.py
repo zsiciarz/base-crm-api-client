@@ -114,12 +114,13 @@ class BaseAPIService(object):
     ##########################
     # Helper Functions
     ##########################
-    def _get_data(self, full_url):
+    def _get_data(self, full_url, params):
         """
         This function submits the url using GET and returns the data for the requested URL.  If the format is set to
         'native', the function assumes the URL is set to json and converts the response using loads()
         """
-        print 'GETing URL %s' % (full_url)
+        url_params = urllib.urlencode(params)
+        print 'GETing URL %s' % (full_url + '?' + url_params)
         req = urllib2.Request(full_url, headers=self.header)
         response = urllib2.urlopen(req)
         data = response.read()
@@ -132,9 +133,10 @@ class BaseAPIService(object):
         This function submits the params to the url using POST and returns the data for the requested URL.  If the
         format is set to 'native', the function assumes the URL is set to json and converts the response using loads()
         """
+        url_params = urllib.urlencode(params)
         print 'POSTing URL %s' % (full_url)
-        print '... with params ' + params
-        req = urllib2.Request(full_url, data=params, headers=self.header)
+        print '... with params ' + url_params
+        req = urllib2.Request(full_url, data=url_params, headers=self.header)
         response = urllib2.urlopen(req)
         data = response.read()
         if self.format == 'native':
@@ -146,9 +148,10 @@ class BaseAPIService(object):
         This function submits the params to the url using PUT and returns the data for the requested URL.  If the format
         is set to 'native', the function assumes the URL is set to json and converts the response using loads()
         """
+        url_params = urllib.urlencode(params)
         print 'PUTing URL %s' % (full_url)
-        print '... with params ' + params
-        req = urllib2.Request(full_url, data=params, headers=self.header)
+        print '... with params ' + url_params
+        req = urllib2.Request(full_url, data=url_params, headers=self.header)
         req.get_method = lambda: 'PUT'
         response = urllib2.urlopen(req)
         data = response.read()
@@ -175,7 +178,7 @@ class BaseAPIService(object):
         """
         Builds a URL for a resource using the not-officially-documented format:
 
-        app.futuresimple.com/apis/<resource>/api/v<version>
+        https://app.futuresimple.com/apis/<resource>/api/v<version>
         """
         return 'https://app.futuresimple.com/apis/%s/api/v%d' % (resource, version)
 
@@ -189,7 +192,9 @@ class BaseAPIService(object):
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
         if contact_id is not None:
-            url = self._build_contact_url(contact_id)
+            # https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
+            url = self._build_resource('sales', 2)
+            url += '/contacts'
         else:
             url = self._build_resource('sales', 1)
         url += '/deals'
@@ -203,7 +208,8 @@ class BaseAPIService(object):
         terminal object, include a format:
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
-        url = self._build_resource('leads', 1) + '/leads'
+        url = self._build_resource('leads', 1)
+        url += '/leads'
         if lead_id is not None:
             url += '/%s' % lead_id
         return self._apply_format(url, format)
@@ -364,14 +370,13 @@ class BaseAPIService(object):
         Arguments:
             page = the set of deals to return. 1 (default) returns the first 20.
         """
-        url = self._build_tags_url(format=self.format)
+        full_url = self._build_tags_url(format=self.format)
         # Append parameters
-        url_params = urllib.urlencode({
+        final_params = {
             'page': page,
             'app_id': app,
-            })
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+            }
+        return self._get_data(full_url, final_params)
 
     def get_contact_tags(self, page=1):
         """
@@ -419,7 +424,7 @@ class BaseAPIService(object):
             final_params['noteable_type'] = 'Lead'
             final_params['noteable_id'] = lead_id
         final_params['page'] = page
-        url_params = urllib.urlencode(final_params)
+
 
         full_url = url + '?' + url_params
         return self._get_data(full_url)
@@ -463,12 +468,11 @@ class BaseAPIService(object):
             note_params['noteable_type'] = 'Lead'
             note_params['noteable_id'] = lead_id
         final_params = _key_coded_dict({'note': note_params})
-        url_params = urllib.urlencode(final_params)
 
         if note_id is None:
-            return self._post_data(url, url_params)
+            return self._post_data(url, final_params)
         else:
-            return self._put_data(url, url_params)
+            return self._put_data(url, final_params)
 
     def update_note(self, note_id, content):
         self._upsert_note(content=content, note_id=note_id)
@@ -611,10 +615,7 @@ class BaseAPIService(object):
             else:
                 raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
 
-        url_params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+        return self._get_data(full_url, valid_params)
 
     def get_contacts(self, page=1, per_page=20, contact_ids=None):
         """
@@ -668,7 +669,7 @@ class BaseAPIService(object):
             }
         }]
         """
-        url = self._build_contact_url()
+        full_url = self._build_contact_url()
 
         final_params = dict()
         final_params['page'] = page
@@ -677,10 +678,7 @@ class BaseAPIService(object):
         # https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
         if contact_ids is not None:
             final_params['contact_ids'] = ','.implode(contact_ids)
-        url_params = urllib.urlencode(final_params)
-
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+        return self._get_data(full_url, final_params)
 
     def get_contact(self, contact_id):
         """
@@ -712,12 +710,11 @@ class BaseAPIService(object):
                 return
             else:
                 final_params['contact[' + key + ']'] = contact_info[key]
-        url_params = urllib.urlencode(_unicode_dict(final_params))
 
         if contact_id is None:
-            return self._post_data(full_url, url_params)
+            return self._post_data(full_url, final_params)
         else:
-            return self._put_data(full_url, url_params)
+            return self._put_data(full_url, final_params)
 
     def create_contact(self, contact_info, person=True):
         """
@@ -805,7 +802,7 @@ class BaseAPIService(object):
         https://app.futuresimple.com/apis/feeder/api/v1/feed/contact/40905809.json?timestamp=null&api_mailman=v2&only=Task
         """
         # Build base URL
-        url = self._build_activity_url(contact_id=contact_id, format=format)
+        full_url = self._build_activity_url(contact_id=contact_id, format=format)
 
         # Add appropriate parameters
         if params is None:
@@ -818,10 +815,7 @@ class BaseAPIService(object):
             if type not in ['Email','Note','Call','Task']:
                 final_params['only'] = type
 
-        url_params = urllib.urlencode(_unicode_dict(final_params))
-        full_url = url + '?' + url_params
-
-        return self._get_data(full_url)
+        return self._get_data(full_url, final_params)
 
     ##########################
     # Deals Functions and Constants
@@ -961,7 +955,7 @@ class BaseAPIService(object):
         'metadata': ...
         }
         """
-        url = self._build_search_url('deal', self.format)
+        full_url = self._build_search_url('deal', self.format)
 
         valid_params = dict()
         valid_params['page'] = page
@@ -1000,10 +994,7 @@ class BaseAPIService(object):
             else:
                 raise ValueError("%s is not a valid sort order for a deal search" % (sort_order))
 
-        url_params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+        return self._get_data(full_url, valid_params)
 
     def _upsert_deal(self, deal_info={}, deal_id=None):
         """
@@ -1025,12 +1016,11 @@ class BaseAPIService(object):
                 return "%s is not a legal deal attribute" % key
             else:
                 final_params[key] = deal_info[key]
-        url_params = urllib.urlencode(_unicode_dict(final_params))
 
         if deal_id is None:
-            return self._post_data(full_url, params)
+            return self._post_data(full_url, final_params)
         else:
-            return self._put_data(full_url, params)
+            return self._put_data(full_url, final_params)
 
     def create_deal(self, deal_info):
         """
@@ -1123,7 +1113,7 @@ class BaseAPIService(object):
         """
 
         # Build base URL
-        url = self._build_activity_url(deal_id=deal_id, format=format)
+        full_url = self._build_activity_url(deal_id=deal_id, format=format)
 
         # Add appropriate parameters
         if params is None:
@@ -1136,10 +1126,7 @@ class BaseAPIService(object):
             if type not in ['Email','Note','Call','Task']:
                 final_params['only'] = type
 
-        url_params = urllib.urlencode(_unicode_dict(final_params))
-        full_url = url + '?' + url_params
-
-        return self._get_data(full_url)
+        return self._get_data(full_url, final_params)
 
     ##########################
     # Sources Functions
@@ -1150,16 +1137,14 @@ class BaseAPIService(object):
         Argument:
             other: default to 0.  If 1, retrieves sources added by other users in the account.
         """
-        url = self._build_sources_url(format=self.format)
+        full_url = self._build_sources_url(format=self.format)
+
         if other == 1:
-            url_params = urllib.urlencode({
-                'other': other,
-                })
+            final_params = { 'other': other }
         else:
-            url_params = ''
-        # Append parameters
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+            final_params = {}
+
+        return self._get_data(full_url, final_params)
 
     ##########################
     # Lead Functions
@@ -1209,13 +1194,9 @@ class BaseAPIService(object):
         Arguments:
             page = the set of leads to return. 0 (default) returns the first 20.
         """
-        url = self._build_lead_url(format=self.format)
-        # Append parameters
-        url_params = urllib.urlencode({
-            'page': page,
-            })
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+        full_url = self._build_lead_url(format=self.format)
+        final_params = { 'page': page }
+        return self._get_data(full_url, final_params)
 
     def get_lead(self, lead_id):
         """
@@ -1225,7 +1206,7 @@ class BaseAPIService(object):
         return self._get_data(full_url)
 
     def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
-        url = self._build_search_url('lead', self.format)
+        full_url = self._build_search_url('lead', self.format)
 
         valid_params = {'page' : page,}
         if filters is not None:
@@ -1251,10 +1232,7 @@ class BaseAPIService(object):
             else:
                 raise ValueError("%s is not a valid sort order for a Lead search" % sort_order)
 
-        url_params = urllib.urlencode(valid_params)
-
-        full_url = url + '?' + url_params
-        return self._get_data(full_url)
+        return self._get_data(full_url, valid_params)
 
     def _upsert_lead(self, lead_info={}, lead_id=None):
         """
@@ -1276,12 +1254,11 @@ class BaseAPIService(object):
                 return "%s is not a legal lead attribute" % key
             else:
                 final_params[key] = lead_info[key]
-        url_params = urllib.urlencode(_unicode_dict(final_params))
 
         if lead_id is None:
-            return self._post_data(full_url, params)
+            return self._post_data(full_url, final_params)
         else:
-            return self._put_data(full_url, params)
+            return self._put_data(full_url, final_params)
 
     def get_lead_notes(self, lead_id, page=0):
         return self._get_notes(lead_id=lead_id, page=page, format=self.format)
@@ -1320,7 +1297,7 @@ class BaseAPIService(object):
         """
 
         # Build base URL
-        url = self._build_activity_url(lead_id=lead_id, format=format)
+        full_url = self._build_activity_url(lead_id=lead_id, format=format)
 
         # Add appropriate parameters
         if params is None:
@@ -1333,10 +1310,7 @@ class BaseAPIService(object):
             if type not in ['Email','Note','Call','Task']:
                 final_params['only'] = type
 
-        url_params = urllib.urlencode(_unicode_dict(final_params))
-        full_url = url + '?' + url_params
-
-        return self._get_data(full_url)
+        return self._get_data(full_url, final_params)
 
     ##########################
     # Email Functions
