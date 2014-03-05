@@ -18,6 +18,8 @@ In early 2014, it became clear that FutureSimple was not keeping the API documen
  
 FutureSimple made it clear that the search function was not set in stone and the same likely applies to these additional features.  Users desiring officially supported features should download and use the limited OfficialSupport branch.  Users willing to risk intermittent issues to take advantage of these advanced features should use master.
 
+NOTE:  IF YOU ARE USING THE EXPANDED CLIENT, TAKE FULL ADVANTAGE OF THE FUNCTION DOCS.  IN SOME CASES (ESPECIALLY PAGING) THE CLIENT USES INTERFACES THAT DO NOT COMPLY WITH THE DEV.FUTURESIMPLE.COM SPECIFICATION.
+
 How it works
 ============
 
