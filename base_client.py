@@ -168,7 +168,7 @@ class BaseAPIService(object):
     ##########################
     def _build_resource(self, resource, version):
         """
-        Builds a URL for a resource using the not-officially-documented:
+        Builds a URL for a resource using the not-officially-documented format:
 
         app.futuresimple.com/apis/<resource>/api/v<version>
         """
@@ -793,7 +793,6 @@ class BaseAPIService(object):
 
     # Views
     # https://app.futuresimple.com/apis/sales/api/v1/deals/by_ids.json?deal_ids=2049413%2C1283854%2C1283853%2C1283851&per_page=4
-    # https://app.futuresimple.com/apis/leads/api/v1/leads.json?ids=7787301&per_page=1
     # https://app.futuresimple.com/apis/sales/api/v1/deals.json?dont_scope_by_stage=true&deal_ids=1276628
     # https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
     # https://app.futuresimple.com/apis/sales/api/v1/deals/top_deals.json
@@ -819,7 +818,7 @@ class BaseAPIService(object):
     # Activities
     # SEE ACTIVITIES SECTION
 
-    def get_deals(self, page=1, stage='incoming'):
+    def get_deals(self, page=1, stage=None):
         """
         Gets deal objects in batches of 20.
         Arguments:
@@ -827,13 +826,19 @@ class BaseAPIService(object):
             stage = the stage of deals to return - see DEAL_STAGES list for details.
         """
         url = self._build_deal_url(format=self.format)
+
         # Append parameters
-        if stage not in self.DEAL_STAGES:
-            raise ValueError("Deal Stage must come from builtin stages list.")
-        url_params = urllib.urlencode({
-            'page': page,
-            'stage': stage,
-            })
+        final_params = dict()
+        final_params['page'] = page
+        if stage is None:
+            final_params['dont_scope_by_stage'] = True
+        else:
+            if stage not in self.DEAL_STAGES:
+                raise ValueError("Deal Stage must come from builtin stages list.")
+            else:
+                final_params['stage'] = stage
+        url_params = urllib.urlencode(final_params)
+
         full_url = url + '?' + url_params
         return self._get_data(full_url)
 
@@ -1093,6 +1098,7 @@ class BaseAPIService(object):
         ]
 
     # Views
+    # https://app.futuresimple.com/apis/leads/api/v1/leads.json?ids=7787301&per_page=1
     # https://app.futuresimple.com/apis/leads/api/v1/leads.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true&using_search=false&page=0&converting=false
     # https://app.futuresimple.com/apis/leads/api/v1/leads/search.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true
 
