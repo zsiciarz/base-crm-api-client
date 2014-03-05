@@ -65,14 +65,6 @@ class BaseAPIService(object):
                     'xml'
         """
 
-        self.resource = dict()
-        self.resource['app'] = 'https://app.futuresimple.com/api/v1'
-        self.resource['common'] = 'https://common.futuresimple.com/api/v1'
-        self.resource['core'] = 'https://core.futuresimple.com/api/v1'
-        self.resource['crm'] = 'https://crm.futuresimple.com/api/v1'
-        self.resource['leads'] = 'https://leads.futuresimple.com/api/v1'
-        self.resource['sales'] = 'https://sales.futuresimple.com/api/v1'
-
         if format == 'native':
             self.format = 'native'
         if format == 'json':
