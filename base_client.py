@@ -109,6 +109,22 @@ class BaseAPIService(object):
         return ("SUCCESS", token)
 
     ##########################
+    # Test Functions
+    ##########################
+
+    @classmethod
+    def setup_class(cls):
+        cls.instance = BaseAPIService(email="technology@ambsw.com", password="test_pass")
+        cls.tests = dict()
+
+    def test_1(self):
+        pass
+
+    @classmethod
+    def teardown_class(cls):
+        pass
+
+    ##########################
     # Helper Functions
     ##########################
     def _get_data(self, full_url):
