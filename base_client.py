@@ -1267,7 +1267,7 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
 
 class AuthenticationTestCases(unittest.TestCase):
-
+ 
     @classmethod
     def setup_class(cls):
         cls.conn = BaseAPIService(email="technology@ambsw.com", password="test_pass")
