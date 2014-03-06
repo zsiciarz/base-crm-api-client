@@ -1,3 +1,4 @@
+import unittest
 import urllib
 import urllib2
 import logging
@@ -39,7 +40,7 @@ def _key_coded_dict(d):
 
 Current API paging:
 
-                    PAGING                              RESPONSE STRUCTURE
+                    PAGING                          RESPONSE STRUCTURE
                     0               1               Items Key   Success w/ Object   Fields
 Contacts (API)      duplicates 1    beginning       False                           38
 Deals (API)         404             beginning       False                           28
@@ -682,7 +683,7 @@ class BaseAPIService(object):
         url_noparam, url_param = self._build_task_resource(task_id=task_id, format=self.format)
         return self._get_data(url_noparam, url_param)
 
-    def get_tasks_date_range(self, due_from, due_to, status=None, page=1):
+    def get_tasks_by_date_range(self, due_from, due_to, status=None, page=1):
         """
 
         ARGUMENTS
@@ -1039,7 +1040,7 @@ class BaseAPIService(object):
     def get_contact_notes(self, contact_id, page=0):
         return self._get_notes(contact_id=contact_id, page=page, format=self.format)
 
-    def create_contact_note(self, contact_id, content):
+    def create_contact_note(self, content, contact_id):
         """
         Creates a note associated with a specific contact (defined by Base's unique contact_id)
         with the content 'content'.
@@ -1047,7 +1048,7 @@ class BaseAPIService(object):
         """
         return self._upsert_note(content=content, contact_id=contact_id)
 
-    def update_contact_note(self, contact_id, content, note_id):
+    def update_contact_note(self, content, note_id):
         """
         Edits a note (defined by Base's unique contact_id and the note's unique note_id)
         with the content content.
@@ -1342,10 +1343,10 @@ class BaseAPIService(object):
         """
         Gets deal object.
         """
-        url_noparam = self._build_note_url(note_id=note_id, deal_id=deal_id, format=self.format)
+        url_noparam = self.get_note(note_id=note_id)
         return self._get_data(url_noparam)
 
-    def create_deal_note(self, deal_id, content):
+    def create_deal_note(self, content, deal_id):
         """
         Creates a note associated with a specific deal (defined by Base's unique deal_id)
         with the content 'content'.
@@ -1353,7 +1354,7 @@ class BaseAPIService(object):
         """
         return self._upsert_note(content=content, deal_id=deal_id)
 
-    def update_deal_note(self, deal_id, content, note_id):
+    def update_deal_note(self, content, note_id):
         """
         Edits a note (defined by Base's unique deal_id and the note's unique note_id)
         with the content content.
@@ -1598,4 +1599,5 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
     # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
+
 
