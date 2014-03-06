@@ -1,3 +1,4 @@
+import unittest
 import urllib
 import urllib2
 import logging
@@ -107,22 +108,6 @@ class BaseAPIService(object):
             return ("ERROR", "Error: No Token Returned")
 
         return ("SUCCESS", token)
-
-    ##########################
-    # Test Functions
-    ##########################
-
-    @classmethod
-    def setup_class(cls):
-        cls.instance = BaseAPIService(email="technology@ambsw.com", password="test_pass")
-        cls.tests = dict()
-
-    def test_1(self):
-        pass
-
-    @classmethod
-    def teardown_class(cls):
-        pass
 
     ##########################
     # Helper Functions
@@ -1280,4 +1265,25 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
     # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
+
+class AuthenticationTestCases(unittest.TestCase):
+
+    @classmethod
+    def setup_class(cls):
+        cls.conn = BaseAPIService(email="technology@ambsw.com", password="test_pass")
+    def test_auth_failed_exists(self):
+        self.assertIn('auth_failed', self.conn.__dict__.keys())
+    def test_auth_failed_false(self):
+        self.assertFalse(self.conn.auth_failed)
+    def test_auth_format_exists(self):
+        self.assertIn('format', self.conn.__dict__.keys())
+    def test_auth_header_exists(self):
+        self.assertIn('header', self.conn.__dict__.keys())
+    def test_auth_key1_in_header(self):
+        self.assertIn("X-Pipejump-Auth", self.conn.header.keys())
+    def test_auth_key2_in_header(self):
+        self.assertIn("X-Futuresimple-Token", self.conn.header.keys())
+    def test_auth_header_keys_equal(self):
+        self.assertEqual(self.conn.header['X-Pipejump-Auth'], self.conn.header['X-Futuresimple-Token'])
+
 
