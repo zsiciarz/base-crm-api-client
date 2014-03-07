@@ -1,4 +1,3 @@
-import unittest
 import urllib
 import urllib2
 import logging
@@ -7,22 +6,10 @@ import json
 logger = logging.getLogger(__name__)
 
 def _unicode_dict(d):
-    new_dict = {}
+    new_dict = dict()
     for k, v in d.iteritems():
         new_dict[k] = unicode(v).encode('utf-8')
     return new_dict
-
-
-def _list_to_tags(l):
-    new_tags = ''
-    for elem in l:
-        if elem != '':
-            new_tags += elem + ','
-
-    if new_tags == '':
-        return ''
-    else:
-        return new_tags[:-1]
 
 def _key_coded_dict(d):
     new_dict = dict()
@@ -35,23 +22,23 @@ def _key_coded_dict(d):
             new_dict[k] = v
     return new_dict
 
-
 """
 
 Current API paging:
 
                     PAGING                          RESPONSE STRUCTURE
-                    0               1               Items Key   Success w/ Object   Fields
-Contacts (API)      duplicates 1    beginning       False                           38
-Deals (API)         404             beginning       False                           28
-Leads (API)         beginning       2nd page        True        True                14
-Contacts (search)   beginning       2nd page        True        False               17
-Deals (search)      duplicates 1    beginning       True                            28
-Leads (search)      beginning       2nd page        True        True                14
+                    0               1               Items Key   Success Field   Fields
+                                                                w/ Object
+Contacts (API)      duplicates 1    beginning       False                       38
+Deals (API)         404             beginning       False       False           28
+Leads (API)         beginning       2nd page        True        True            14
+Contacts (search)   beginning       2nd page        True        False           17
+Deals (search)      duplicates 1    beginning       True        True            28
+Leads (search)      beginning       2nd page        True        True            14
 
 Tags                duplicates 1    beginning       False
 Notes               duplicates 1    beginning       False
-Feed                no paging       no paging       True
+Feed                (encrypted)     (encrypted)     True
 Tasks               duplicates 1    beginning       False       False               18
 Emails              TBD             TBD
 
@@ -59,20 +46,28 @@ Emails              TBD             TBD
 
 class BaseAPIService(object):
 
+    FORMAT_OPTIONS = [
+        'native',
+        'json',
+        'xml'
+    ]
+
     def __init__(self, email, password, format='native'):
         """
         Gets a login token for base, and set the format for response objects.
-        format =    'native' (default)
-                    'json'
-                    'xml'
-        """
 
-        if format == 'native':
-            self.format = 'native'
-        if format == 'json':
-            self.format = '.json'
-        elif format == 'xml':
-            self.format = '.xml'
+        ARGUMENTS
+
+        Credentials:
+            email
+            password
+        Format:
+            format='native' (default) - All public functions return native python objects (generally lists and dicts)
+            format='json' - All public functions return strings of JSON objects
+            format='xml' - All public functions return strings of XML data
+        """
+        if format in self.FORMAT_OPTIONS:
+            self.format = format
 
         # Get token
         status, self.token = self._get_login_token(email=email, password=password)
@@ -90,7 +85,16 @@ class BaseAPIService(object):
     ##########################
     def _get_login_token(self, email, password):
         """
-        Passes email and password to base api and returns login token.
+        Gets BaseCRM login token
+
+        ARGUMENTS
+
+            email
+            password
+
+        RESPONSE STRUCTURE
+
+            token (string)
         """
         url_noparam = self._build_resource_url('sales',1) + '/authentication.json'
         url_params = urllib.urlencode({
@@ -180,22 +184,22 @@ class BaseAPIService(object):
 
     def _apply_format(self, url, format=None):
         """
-        This function appends an appropriate extension telling the BaseCRM API to respond in a particular format. The
-        'native' format uses json at the communication layer and automatically converts the data back to native during
-        the GET/POST/PUT.
+        (DEPRICATAED) This function appends an appropriate extension telling the BaseCRM API to respond in a particular
+        format. The 'native' format uses json at the communication layer and automatically converts the data back to
+        native during the GET/POST/PUT.
         """
         if format is not None:
-            if format == '.json' or format == 'native':
-                url += '%s' % ('.json')
+            if format == 'json' or format == 'native':
+                url += '.json'
             elif format == '.xml':
-                url += '%s' % ('.xml')
+                url += '.xml'
         return url
 
     ##########################
     # Resource Builders
     #
     # BaseCRM has started to transition object identification from the path to the parameters (or a combination).  In 
-    # response, URL builer functions (returning just a url string) are being replaced with "resource" functions 
+    # response, URL builder functions (returning just a url string) are being replaced with "resource" functions
     # returning a tuple of URL string (excluding parameters) and parameter dict.
     ##########################
     def _build_resource_url(self, resource, version, path = '', format=None):
@@ -208,11 +212,11 @@ class BaseAPIService(object):
 
     def _build_search_url(self, type, format):
         if type == 'contact':
-            url = self._build_contact_url()
+            url, params = self._build_contact_resource()
+        elif type == 'deal':
+            url, params = self._build_deal_resource()
         elif type == 'lead':
             url = self._build_lead_url()
-        elif type == 'deal':
-            url = self._build_deal_url()
         else:
             raise ValueError("Invalid search type.")
         url += '/search'
@@ -224,12 +228,20 @@ class BaseAPIService(object):
     def get_accounts(self):
         """
         Get current account.
-        """
-        url = self._build_resource_url('sales',1)
-        url += '/account'
-        url_noparam = self._apply_format(url, self.format)
 
-        return self._get_data(url_noparam)
+        RESPONSE STRUCTURE
+
+        {'account':
+            {'currency_id': ...
+             'currency_name': ...
+             'id': ...
+             'name': ...
+             'timezone': ...
+             }
+        }
+        """
+        url_noparam = self._build_resource_url('sales', 1, '/account', self.format)
+        return self._get_data(url_noparam, {})
 
     ##########################
     # Feed (i.e. Activity) Functions
@@ -238,28 +250,32 @@ class BaseAPIService(object):
     ##########################
     def _build_feed_resource(self, contact_id=None, lead_id=None, deal_id=None, type=None, format=None):
         """
-        Returns a tuple of URL (without parameters) and params that will produce a list of activities (i.e. feed).
+        Returns a tuple of URL (without parameters) and params that will produce a list of activities (i.e. feed) in
+        batches of 20.
 
         ARGUMENTS
 
-        Parent objects (one of the following):
+        Parent objects (optional, include only one):
             contact_id (default None) - load activities for a specific contact
             lead_id (default None) - load activities for a specific lead
             deal_id (default None) - load activities for a specific deal
-        Activity Types
+        Activity Types:
             type=None (default) - load all types
-            type='Email' returns only emails
-            type='Note' returns only notes
-            type='Call' returns only phone calls
-            type='Task' returns only completed tasks
-        Format
+            type='Email' - returns only emails
+            type='Note' - returns only notes
+            type='Call' - returns only phone calls
+            type='Task' - returns only completed tasks
+        Paging (NOT IMPLEMENTED):
+            timestamp - paging is achieved using the timestamp parameter, but the value (a long string of mixed
+                number, character, and case) does not present an obvious translation (see paging examples, below)
+        Format:
             format (default None) - see BaseAPIService._apply_format() for accepted values
 
         RESPONSE STRUCTURE
 
-        <tbd>
+        see get_feed()
 
-        FORMAT OF GENERATED REQUEST
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
 
         https://app.futuresimple.com/apis/feeder/api/v1/feed/contact/40905809.json?timestamp=null&api_mailman=v2
         https://app.futuresimple.com/apis/feeder/api/v1/feed/contact/40905809.json?timestamp=null&api_mailman=v2&only=Email
@@ -278,6 +294,13 @@ class BaseAPIService(object):
         https://app.futuresimple.com/apis/feeder/api/v1/feed/deal/1290465.json?timestamp=null&api_mailman=v2&only=Note
         https://app.futuresimple.com/apis/feeder/api/v1/feed/deal/1290465.json?timestamp=null&api_mailman=v2&only=Call
         https://app.futuresimple.com/apis/feeder/api/v1/feed/deal/1290465.json?timestamp=null&api_mailman=v2&only=Task
+
+        PAGING (spaces introduced to empahsize minor differences between URLs)
+        https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQx NTE 3MjAx LCJsYXN0X25vdGVfaWQiOj EwNjE 0MzE zLCJsYXN0X2xlYWRfaWQiOjc3ODczMDEsImxhc3RfZGVhbF9zdGFnZV9jaGFuZ2VfaWQiOjc3MTY2NSwibGFzdF9kZWFsX2lkIjoxMjc2NjQ3fQ
+        https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 3NTg1 LCJsYXN0X25vdGVfaWQiOj YzNDM yNDE sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
+        https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 1NzY1 LCJsYXN0X25vdGVfaWQiOj YzNDM wOTk sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
+        https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 1NzY0 LCJsYXN0X25vdGVfaWQiOj YzNDM wOTk sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
+        https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 1NjI5 LCJsYXN0X25vdGVfaWQiOj YzNDM wOTk sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
         """
         path = '/feed'
         url_params = dict()
@@ -302,22 +325,21 @@ class BaseAPIService(object):
 
     def get_feed(self, contact_id=None, lead_id=None, deal_id=None, type=None, format=None):
         """
-        Returns the most recent 20 activities (i.e. feed) attached to
+        Returns the most recent 20 activities (i.e. feed) that meet the filter conditions
 
         ARGUMENTS
 
-        Parent objects - Allows the caller to limit the request to a particular object, if no parent is included, will
-        return the 20 most recent activities for the authenticated user
+        Parent Objects (optional, include only one):
             contact_id (default None) - load activities for a specific contact
             lead_id (default None) - load activities for a specific lead
             deal_id (default None) - load activities for a specific deal
-        Activity Types - Allows the caller to limit the request to certain types of activities
+        Activity Types:
             type=None (default) - load all types
             type='Email' returns only emails
             type='Note' returns only notes
             type='Call' returns only phone calls
             type='Task' returns only completed tasks
-        Format
+        Format:
             format (default None) - see BaseAPIService._apply_format() for accepted values
 
         RESPONSE STRUCTURE
@@ -331,7 +353,7 @@ class BaseAPIService(object):
                 }
               'success': ...
               'metadata': ...
-            }]
+            }, ...]
          'success': ...
          'metadata': ...
         }
@@ -367,27 +389,63 @@ class BaseAPIService(object):
             type=type, format=format)
         return self._get_data(url_noparam, url_params)
 
+    def get_contact_feed(self, contact_id):
+        return self._get_feed(contact_id=contact_id, format=self.format)
+    def get_contact_feed_emails(self, contact_id):
+        return self._get_feed(contact_id=contact_id, type='Email', format=self.format)
+    def get_contact_feed_notes(self, contact_id):
+        return self._get_feed(contact_id=contact_id, type='Note', format=self.format)
+    def get_contact_feed_calls(self, contact_id):
+        return self._get_feed(contact_id=contact_id, type='Call', format=self.format)
+    def get_contact_feed_tasks_completed(self, contact_id):
+        return self._get_feed(contact_id=contact_id, type='Task', format=self.format )
+
+    def get_deal_feed(self, deal_id):
+        return self._get_feed(deal_id=deal_id, format=self.format)
+    def get_deal_feed_emails(self, deal_id):
+        return self._get_feed(deal_id=deal_id, type='Email', format=self.format)
+    def get_deal_feed_notes(self, deal_id):
+        return self._get_feed(deal_id=deal_id, type='Note', format=self.format)
+    def get_deal_feed_calls(self, deal_id):
+        return self._get_feed(deal_id=deal_id, type='Call', format=self.format)
+    def get_deal_feed_tasks_completed(self, deal_id):
+        return self._get_feed(deal_id=deal_id, type='Task', format=self.format)
+
+    def get_lead_feed(self, lead_id):
+        return self._get_feed(lead_id=lead_id, format=self.format)
+    def get_lead_feed_emails(self, lead_id):
+        return self._get_feed(lead_id=lead_id, type='Email', format=self.format)
+    def get_lead_feed_notes(self, lead_id):
+        return self._get_feed(lead_id=lead_id, type='Note', format=self.format)
+    def get_lead_feed_notes_alt(self, lead_id):
+        return self._get_notes(lead_id=lead_id, format=self.format)
+    def get_lead_feed_calls(self, lead_id):
+        return self._get_feed(lead_id=lead_id, type='Call', format=self.format)
+    def get_lead_feed_tasks_completed(self, lead_id):
+        return self._get_feed(lead_id=lead_id, type='Task', format=self.format)
+
     ##########################
     # Tags Functions
     ##########################
-    def _build_tags_url(self, tag_id=None, format=None):
-        url_noparam, url_params = self._build_tags_resource(tag_id=tag_id, format=format)
-        return url_noparam
-
     def _build_tags_resource(self, tag_id=None, app_id=None, page=None, format=None):
         """
-        Returns a tuple of URL (without parameters) and params to obtain a list of tags
+        Returns a tuple of URL (without parameters) and params to obtain a list of tags in batches of 20
 
         ARGUMENTS
 
+        Filters:
             tag_id - returns information about a single tag
-            app_id - gets all tags for a particular app_id (roughly object type)
-            page
-        If this is the
-        terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+            app_id - gets all tags for a particular app_id (i.e. type of object)
+        Paging:
+            page (default 1)
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
 
-        Generates API calls like:
+        RESPONSE STRUCTURE
+
+        see get_tags()
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
 
         https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=1
         https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=4
@@ -395,7 +453,7 @@ class BaseAPIService(object):
         https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=7
         """
         path = '/tags'
-        url_params = {}
+        url_params = dict()
 
         if tag_id is not None:
             path += '/%s' % tag_id
@@ -410,17 +468,17 @@ class BaseAPIService(object):
 
     def get_tags(self, type, page=1):
         """
-        Gets tag objects.
+        Gets tag objects for a particular type of object in batches of 20
 
         ARGUMENTS
 
-        Type
+        Type:
             type='Contact'
             type='ContactAlt' - Due to a quirk in the backend, contact tags appear to have two access methods which
                 have been duplicated in the API client in case they are functional
             type='Deal'
             type='Lead'
-        Other
+        Paging
             page (default 1)
 
         RESPONSE STRUCTURE
@@ -430,7 +488,7 @@ class BaseAPIService(object):
              'name': ...
              'permissions_holder_id': ...
             }
-        }]
+        }, ...]
         """
         # Translates between object types and friendly names
         if type == 'Contact':
@@ -452,67 +510,493 @@ class BaseAPIService(object):
         return self._get_data(url_noparam, url_params)
 
     def get_tag(self, tag_id):
+        """
+        Returns the contents of one tag identified by tag_id
+
+        RESPONSE STRUCTURE
+
+        {'tag':
+            {'id': ...
+             'name': ...
+             'permissions_holder_id': ...
+            }
+        }
+        """
         url_noparam, url_params = self._build_tags_resource(tag_id=tag_id, format=self.format)
         return self._get_data(url_noparam, url_params)
 
     def get_contact_tags(self, page=1):
         """
-        Contact tags are generated by two values of app_id:
+        Returns tags associated with Contacts in batches of 20
 
-        https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=4
-        https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=7
-
-        The difference is unclear so two functions (get_contact_tags and get_contact_tags_alt) are used.
+        NOTE: Due to an underlying ambiguity in the API, see also get_contact_tags_alt()
         """
         return self.get_tags('Contact', page)
     def get_contact_tags_alt(self, page=1):
+        """
+        Returns tags associated with Contacts in batches of 20
+
+        NOTE: Due to an underlying ambiguity in the API, see also get_contact_tags()
+        """
         return self.get_tags('ContactAlt', page)
     def get_deal_tags(self, page=1):
+        """
+        Returns tags associated with Deals in batches of 20
+        """
         return self.get_tags('Deal', page)
     def get_lead_tags(self, page=1):
+        """
+        Returns tags associated with Leads in batches of 20
+        """
         return self.get_tags('Lead', page)
+
+    def _upsert_tag(self):
+        raise NotImplementedError
+    def update_tag(self):
+        raise NotImplementedError
+    def create_contact_tag(self):
+        app_id=4
+        raise NotImplementedError
+    def create_deal_tag(self):
+        app_id=1
+        raise NotImplementedError
+    def create_lead_tag(self):
+        app_id=5
+        raise NotImplementedError
+
+    def _build_taggings_resource(self, tag_list, method='add', contact_id=None, deal_id=None, lead_id=None,
+                                 contact_ids=None, deal_ids=None, lead_ids=None,
+                                 format=None):
+        """
+        Returns a tuple of URL (without parameters) and params to modify object tags
+
+        ARGUMENTS
+
+        Behavior:
+            tag_list - list of one to many tags (
+            method (default 'add') - determines the change made ('add', 'remove', or 'replace')
+        Parent Objects (only valid for 'replace', include only one)
+            contact_id
+            deal_id
+            lead_id
+        Parent Objects (only valid for 'add' and 'remove', include only one)
+            contact_ids
+            deal_ids
+            lead_ids
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see _add_tags(), _remove_tag(), _replace_tags()
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/tags/api/v1/taggings.json
+            POST = app_id=4&taggable_type=Contact&tag_list=from+google&taggable_id=40905764 # note singular id
+        https://app.futuresimple.com/apis/tags/api/v1/taggings/batch_untag.json
+            POST = app_id=4&taggable_type=Contact&tag_list=from+google&taggable_ids=40905764 # note plural ids
+        https://app.futuresimple.com/apis/tags/api/v1/taggings/batch_add.json
+            POST = app_id=4&taggable_type=Contact&tag_list=from+google&taggable_ids=40905764 # note plural ids
+        """
+        path = '/taggings'
+        url_params = dict()
+
+        url_params['tag_list'] = ','.join(tag_list)
+
+        # Configure parameters for method and target object (together because there are strict compatibilities)
+        if method == 'replace':
+            # Only singular id values are compatible
+            if contact_id is not None:
+                url_params['taggable_id'] = contact_id
+                url_params['taggable_type'] = 'Contact'
+            elif deal_id is not None:
+                url_params['taggable_id'] = deal_id
+                url_params['taggable_type'] = 'Deal'
+            elif lead_id is not None:
+                url_params['taggable_id'] = lead_id
+                url_params['taggable_type'] = 'Lead'
+        elif method in ['add','remove']:
+            if method == 'add':
+                path += '/batch_add'
+            else: # method == 'replace'
+                path += '/batch_untag'
+            # Only plural ids values are compatible
+            if contact_ids is not None:
+                url_params['taggable_ids'] = ','.join([str(x) for x in contact_ids])
+                url_params['taggable_type'] = 'Contact'
+            elif deal_ids is not None:
+                url_params['taggable_ids'] = ','.join([str(x) for x in deal_ids])
+                url_params['taggable_type'] = 'Deal'
+            elif lead_ids is not None:
+                url_params['taggable_ids'] = ','.join([str(x) for x in lead_ids])
+                url_params['taggable_type'] = 'Lead'
+        else:
+            raise ValueError("'method' is '%s' but must be 'add', 'remove', or 'replace'" % str(method))
+
+        if url_params['taggable_type'] == 'Contact':
+            url_params['app_id'] = 4
+        elif url_params['taggable_type'] == 'Deal':
+            url_params['app_id'] = 1
+        elif url_params['taggable_type'] == 'Lead':
+            url_params['app_id'] = 5
+
+        url_noparam = self._build_resource_url('tags', 1, path, format)
+        return url_noparam, url_params
+
+    def _add_tags(self, tag_list, contact_id=None, deal_id=None, lead_id=None,
+                  contact_ids=None, deal_ids=None, lead_ids=None):
+        """
+        PRIVATE FUNCTION that enforces data integrity rules for adding tags, to be called by public single-purpose tag
+        functions.
+
+        ARGUMENTS
+
+        Tags:
+            tag_list - list of textual tags
+        Parent Object(s) (include only one):
+            contact_id - singular id
+            deal_id - singular id
+            lead_id - singular id
+            contact_ids - list of ids
+            deal_ids - list of ids
+            lead_ids - list of ids
+
+        RESPONSE STRUCTURE
+
+        {'<taggable_id_1>':
+            ['<new tag 1>',
+             '<new tag 2>'
+            ],
+         ...
+        }
+
+        NOTE: In the response dict, a key is present for each submitted object.  The value is a list of tags actually
+        added to the object.  If no tags were added to a particular object, the value is an empty list.
+        """
+        method = 'add'
+        if not isinstance(tag_list, list):
+            tag_list=[tag_list]
+        else:
+            # Ensure None (if present) is not translated into a string
+            # lower() because UI implementation of tags seems to assume case insensitivity, but API is case sensitive
+            tag_list = [str(x).lower() for x in tag_list if x]
+
+        contacts, deals, leads = None, None, None
+        # Support both singleton id and list ids
+        if contact_id is not None:
+            contacts = [contact_id]
+        elif deal_id is not None:
+            deals = [deal_id]
+        elif lead_id is not None:
+            leads = [lead_id]
+        elif contact_ids is not None:
+            contacts = contact_ids
+        elif deal_ids is not None:
+            deals = deal_ids
+        elif lead_ids is not None:
+            leads = lead_ids
+        else:
+            raise ValueError('_add_tags request must include a valid object')
+
+        url_noparam, url_params = self._build_taggings_resource(tag_list=tag_list, method=method,
+            contact_ids=contacts, deal_ids=deals, lead_ids=leads, format=self.format)
+        return self._post_data(url_noparam, url_params)
+
+    def _remove_tag(self, tag, contact_id=None, deal_id=None, lead_id=None,
+                  contact_ids=None, deal_ids=None, lead_ids=None):
+        """
+        PRIVATE FUNCTION that enforces data integrity rules for removing tags, to be called by public single-purpose
+        tag functions.
+
+        ARGUMENTS
+
+        Tags:
+            tag - single textual tag
+        Parent Object(s) (include only one):
+            contact_id - singular id
+            deal_id - singular id
+            lead_id - singular id
+            contact_ids
+            deal_ids
+            lead_ids
+
+        RESPONSE STRUCTURE
+
+        {'untagged_ids': null}
+
+        OR
+
+        {'untagged_ids':
+            [<object_id 1>,
+            ...
+            ]
+        }
+
+        NOTE: Only includes objects where the tag was removed.  If no objects were affected, the value of
+        'untagged_ids' is None (rather than an empty list).
+        """
+        method='remove'
+        # The remove method only supports a single tag.  Since most other tag methods support lists of tags, we
+        # explicitly check that the input in valid.
+        if isinstance(tag, list):
+            raise ValueError("'tag' does not accept a list")
+        if  ',' in tag:
+            raise ValueError("'tag' may not include a comma as only one tag can be removed at a time")
+
+        # _build_taggings_resource only accepts a list of tags so we recast our single tag appropriately
+        if tag: # ensure None is not translated into a string
+            # lower() because UI implementation of tags seems to assume case insensitivity, but API is case sensitive
+            tag = [str(tag).lower()]
+        else:
+            tag = [] # The API considers this a valid request so we don't bother raising an error
+
+        url_noparam, url_params = self._build_taggings_resource(tag_list=tag, method=method, contact_id=contact_id,
+            deal_id=deal_id, lead_id=lead_id, contact_ids=contact_ids, deal_ids=deal_ids, lead_ids=lead_ids,
+            format=self.format)
+        return self._post_data(url_noparam, url_params)
+
+    def _replace_tags(self, tag_list, contact_id=None, deal_id=None, lead_id=None):
+        """
+        PRIVATE FUNCTION that enforces data integrity rules for replacing tags, to be called by public single-purpose
+        tag functions.
+
+        ARGUMENTS
+
+        Tags:
+            tag_list - list of textual tags
+        Parent Object (include only one):
+            contact_id
+            deal_id
+            lead_id
+
+        RESPONSE STRUCTURE
+
+        [{'tag':
+            {'id': ...
+             'name': ...
+             'permissions_holder_id': ...
+             }
+         }, ...]
+
+        NOTE: Lists ids of all tags included in tag_list
+        """
+        method='replace'
+        if not isinstance(tag_list, list):
+            raise ValueError("'tag_list' must be a list")
+        else:
+            # Ensure None (if present) is not translated into a string
+            # lower() because UI implementation of tags seems to assume case insensitivity, but API is case sensitive
+            tag_list = [str(x).lower() for x in tag_list if x]
+
+        url_noparam, url_params = self._build_taggings_resource(tag_list=tag_list, method=method, contact_id=contact_id,
+            deal_id=deal_id, lead_id=lead_id, format=self.format)
+        return self._post_data(url_noparam, url_params)
+
+    def tag_contacts(self, tag_list, contact_ids):
+        """
+        Adds one or more tags to one or more contacts
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            contact_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _add_tags()
+        """
+        if not isinstance(contact_ids, list):
+            contact_ids = [contact_ids]
+        return self._add_tags(tag_list=tag_list, contact_ids=contact_ids)
+    def untag_contacts(self, tag, contact_ids):
+        """
+        Removes one tag from one or more contacts
+
+        ARGUMENTS
+
+            tag - single tag (text form, not ids)
+            contact_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _remove_tag()
+        """
+        if not isinstance(contact_ids, list):
+            contact_ids = [contact_ids]
+        return self._remove_tag(tag=tag,  contact_ids=contact_ids)
+    def retag_contact(self, tag_list, contact_id):
+        """
+        Replaces all tags for contact_id with tags in tag_list
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            contact_id - id of contact to be updated
+
+        RESPONSE STRUCTURE
+
+        see _replace_tags()
+        """
+        return self._replace_tags(tag_list=tag_list, contact_id=contact_id)
+    def update_contact_tags(self, tag_list, contact_id):
+        """
+        Alias for retag_contact():  Replaces all tags for contact_id with tags in tag_list
+        """
+        return self.retag_contact(tag_list=tag_list, contact_id=contact_id)
+
+    def tag_deals(self, tag_list, deal_ids):
+        """
+        Adds one or more tags to one or more deals
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            deal_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _add_tags()
+        """
+        if not isinstance(deal_ids, list):
+            deal_ids = [deal_ids]
+        return self._add_tags(tag_list=tag_list, deal_ids=deal_ids)
+    def untag_deals(self, tag, deal_ids):
+        """
+        Removes one tag from one or more deals
+
+        ARGUMENTS
+
+            tag - single tag (text form, not ids)
+            deal_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _remove_tag()
+        """
+        if not isinstance(deal_ids, list):
+            deal_ids = [deal_ids]
+        return self._remove_tag(tag=tag,  deal_ids=deal_ids)
+    def retag_deal(self, tag_list, deal_id):
+        """
+        Replaces all tags for deal_id with tags in tag_list
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            deal_id - id of deal to be updated
+
+        RESPONSE STRUCTURE
+
+        see _replace_tags()
+        """
+        return self._replace_tags(tag_list=tag_list, deal_id=deal_id)
+    def update_deal_tags(self, tag_list, deal_id):
+        """
+        Alias for retag_deal():  Replaces all tags for deal_id with tags in tag_list
+        """
+        return self.retag_deal(tag_list=tag_list, deal_id=deal_id)
+
+    def tag_leads(self, tag_list, lead_ids):
+        """
+        Adds one or more tags to one or more leads
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            lead_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _add_tags()
+        """
+        if not isinstance(lead_ids, list):
+            lead_ids = [lead_ids]
+        return self._add_tags(tag_list=tag_list, lead_ids=lead_ids)
+    def untag_leads(self, tag, lead_ids):
+        """
+        Removes one tag from one or more leads
+
+        ARGUMENTS
+
+            tag - single tag (text form, not ids)
+            lead_ids - list of IDs or single ID (automatically converted to a one-item list)
+
+        RESPONSE STRUCTURE
+
+        see _remove_tag()
+        """
+        if not isinstance(lead_ids, list):
+            lead_ids = [lead_ids]
+        return self._remove_tag(tag=tag,  lead_ids=lead_ids)
+    def retag_lead(self, tag_list, lead_id):
+        """
+        Replaces all tags for lead_id with tags in tag_list
+
+        ARGUMENTS
+
+            tag_list - list of tags (text form, not ids)
+            lead_id - id of lead to be updated
+
+        RESPONSE STRUCTURE
+
+        see _replace_tags()
+        """
+        return self._replace_tags(tag_list=tag_list, lead_id=lead_id)
+    def update_lead_tags(self, tag_list, lead_id):
+        """
+        Alias for retag_lead():  Replaces all tags for lead_id with tags in tag_list
+        """
+        return self.retag_lead(tag_list=tag_list, lead_id=lead_id)
 
     ##########################
     # Notes Functions
     ##########################
-    def _build_note_resource(self, note_id=None, contact_id=None, deal_id=None, lead_id=None, page=1, format=None):
+    def _build_note_resource(self, note_id=None, contact_id=None, deal_id=None, lead_id=None, page=None, format=None):
         """
-        Private function to get notes. Request may include one (and only one) of the following parent identifiers:
-         - contact_id
-         - deal_id
-         - lead_id
-        If provided, the results will only include notes that belong to the specified object.  If none of the above is
-        provided (default), returns all notes. Function also accepts:
-         - page (default 1): the page of results to be loaded
-         - format: see BaseAPIService._apply_format() for accepted values
+        Returns a tuple of URL (without parameters) and params to get notes matching filter criteria in batches of 20
+
+        Parent Objects (optional, include only one):
+            contact_id
+            deal_id
+            lead_id
+        Paging:
+            page (default 1): the page of results to be loaded
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
 
         Returns a URL to obtain either all notes (note_id=None) or a specific note (note_id=integer). This call must
         include a format:
          - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
         """
         path = '/notes'
-        url_param = {}
+        url_params = dict()
 
         if note_id is not None:
             path += '/%s' % note_id
         elif contact_id is not None:
-            url_param['noteable_type'] = 'Contact'
-            url_param['noteable_id'] = contact_id
+            url_params['noteable_type'] = 'Contact'
+            url_params['noteable_id'] = contact_id
         elif deal_id is not None:
-            url_param['noteable_type'] = 'Deal'
-            url_param['noteable_id'] = deal_id
+            url_params['noteable_type'] = 'Deal'
+            url_params['noteable_id'] = deal_id
         elif lead_id is not None:
-            url_param['noteable_type'] = 'Lead'
-            url_param['noteable_id'] = lead_id
+            url_params['noteable_type'] = 'Lead'
+            url_params['noteable_id'] = lead_id
 
-        url_param['page'] = page
+        if page is not None:
+            url_params['page'] = page
 
         url_noparam = self._build_resource_url('common', 1, path, format)
-        return url_noparam, url_param
+        return url_noparam, url_params
 
-    def _get_notes(self, note_id=None, contact_id=None, deal_id=None, lead_id=None, page=1, format=None):
+    def _get_notes(self, note_id=None, contact_id=None, deal_id=None, lead_id=None, page=None, format=None):
         """
-        PRIVATE FUNCTION that can be called by public, single-purpose notes functions.
+        PRIVATE FUNCTION to get notes that can be called by public, single-purpose notes functions.
+
+        RESPONSE STRUCTURE
+
+        see get_notes() and get_note()
         """
         url_noparam, url_params = self._build_note_resource(note_id=note_id, contact_id=contact_id, deal_id=deal_id,
             lead_id=lead_id, page=page, format=format)
@@ -520,23 +1004,74 @@ class BaseAPIService(object):
 
     def get_notes(self, page=1):
         """
-        Returns all notes visible to the authenticated user
+        Returns notes visible to the authenticated user in batches of 20.  To filter by object type or ID see
+        get_contact_notes(), get_lead_notes(), and get_deal_notes().
+
+        ARGUMENTS
+
+        Paging:
+            page
+        
+        RESPONSE STRUCTURE
+
+        [{'note':
+            {'user_id': ...
+             'account_id': ...
+             'permissions_holder_id': ...
+             'created_at': ...
+             'updated_at': ...
+             'noteable_id': ...
+             'noteable_type': ...
+             'content': ...
+             'private': ...
+             'id': ...
+            }
+        }, ...]
         """
         return self._get_notes(page=page, format=self.format)
 
     def get_note(self, note_id):
         """
-        Gets the note for the given note_id
+        Gets the attributes for the given note_id
+
+        RESPONSE STRUCTURE
+        
+        {'note':
+            {'user_id': ...
+             'account_id': ...
+             'permissions_holder_id': ...
+             'created_at': ...
+             'updated_at': ...
+             'noteable_id': ...
+             'noteable_type': ...
+             'content': ...
+             'private': ...
+             'id': ...
+            }
+        }
         """
         return self._get_notes(note_id=note_id, format=self.format)
 
     def _upsert_note(self, content, note_id=None, contact_id=None, deal_id=None, lead_id=None, format=None):
         """
-        PRIVATE FUNCTION duplicating note calls by BaseCRM website
-            content: "test note"
-        Parent objects are identified by a combination of:
-            noteable_id: 7787301 # ID of lead
-            noteable_type: "Lead"
+        PRIVATE FUNCTION to create or update notes
+
+        ATTRIBUTES
+
+        Content:
+            content - body of note
+        Note Object or Parent Object (must include one, include only one):
+            note_id
+            contact_id
+            deal_id
+            lead_id
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see get_note()
+
         NOTE that all objects must be encoded as note[<field>] without the quotes normally introduced by URL encoding
         python dicts.
         """
@@ -544,7 +1079,6 @@ class BaseAPIService(object):
             lead_id=lead_id, format=format)
 
         note_params['content'] = content
-
         url_params = _key_coded_dict({'note': note_params})
 
         if note_id is None:
@@ -552,11 +1086,87 @@ class BaseAPIService(object):
         else:
             return self._put_data(url_noparams, url_params)
 
-    def update_note(self, note_id, content):
+    def update_note(self, content, note_id):
         """
-        Updates the content of note_id
+        Updates the content for the given note_id
+
+        ATTRIBUTES
+
+            note_id - id of note being modified
+            content - the new content for the note
+
+        RESPONSE STRUCTURE
+
+        see get_note()
         """
         self._upsert_note(content=content, note_id=note_id)
+
+    def get_contact_notes(self, contact_id, page=0):
+        """
+        Gets all notes associated with a specific contact (defined by Base's unique contat_id) in batches of 20
+
+        RESPONSE STRUCTURE
+
+        see get_note()
+        """
+        return self._get_notes(contact_id=contact_id, page=page, format=self.format)
+    def create_contact_note(self, content, contact_id):
+        """
+        Creates a note associated with a specific contact (defined by Base's unique contact_id)
+        with the content 'content'.
+
+        RESPONSE STRUCTURE
+
+        see get_note()
+        """
+        return self._upsert_note(content=content, contact_id=contact_id)
+    def update_contact_note(self, content, note_id):
+        """
+        Edits a note (the note's unique note_id) with the content content.
+        Returns a json or xml response.
+
+        RESPONSE STRUCTURE
+
+        see get_note()
+        """
+        return self._upsert_note(content=content, note_id=note_id)
+
+    def get_deal_notes(self, deal_id, page=0):
+        return self._get_notes(deal_id=deal_id, page=page, format=self.format)
+    def create_deal_note(self, content, deal_id):
+        """
+        Creates a note associated with a specific deal (defined by Base's unique deal_id)
+        with the content 'content'.
+        Returns a json or xml response.
+        """
+        return self._upsert_note(content=content, deal_id=deal_id)
+    def update_deal_note(self, content, note_id):
+        """
+        Edits a note (defined by Base's unique deal_id and the note's unique note_id)
+        with the content content.
+        Returns a json or xml response.
+        """
+        return self._upsert_note(content=content, note_id=note_id)
+
+    def get_lead_notes(self, lead_id, page=0):
+        return self._get_notes(lead_id=lead_id, page=page, format=self.format)
+    def create_lead_note(self, content, lead_id):
+        """
+        Creates a note associated with a specific lead (defined by Base's unique lead_id)
+        with the content 'content'.
+        Returns a json or xml response.
+        """
+        return self._upsert_note(content=content, lead_id=lead_id)
+    def update_lead_note(self, content, note_id):
+        """
+        Edits a note (the note's unique note_id) with the content content.
+        Returns a json or xml response.
+
+        RESPONSE STRUCTURE
+
+        see get_note()
+        """
+        return self._upsert_note(content=content, note_id=note_id)
 
     ##########################
     # Tasks Functions
@@ -572,9 +1182,19 @@ class BaseAPIService(object):
     def _build_task_resource(self, task_id=None, contact_id=None, lead_id=None, deal_id=None, status=None, due=None,
                              due_range=None, page=1, format=None):
         """
-        Gets tasks in batches of 20.
+        Returns a tuple of URL (without parameters) and params to get tasks in batches of 20.
 
-        Generates API calls like:
+        ARGUMENTS
+
+        ...
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see get_tasks()
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
 
         https://app.futuresimple.com/apis/common/api/v1/tasks.json?status=active&owner=309357
         https://app.futuresimple.com/apis/common/api/v1/tasks.json?taskable_type=Lead&taskable_id=7787301&done=true
@@ -594,35 +1214,35 @@ class BaseAPIService(object):
 
         """
         path = '/tasks'
-        url_param = {}
+        url_params = dict()
 
         if task_id is not None:
             path += '/%s' % task_id
         elif contact_id is not None:
-            url_param['taskable_type'] = 'Contact'
-            url_param['taskable_id'] = contact_id
+            url_params['taskable_type'] = 'Contact'
+            url_params['taskable_id'] = contact_id
         elif deal_id is not None:
-            url_param['taskable_type'] = 'Deal'
-            url_param['taskable_id'] = deal_id
+            url_params['taskable_type'] = 'Deal'
+            url_params['taskable_id'] = deal_id
         elif lead_id is not None:
-            url_param['taskable_type'] = 'Lead'
-            url_param['taskable_id'] = lead_id
+            url_params['taskable_type'] = 'Lead'
+            url_params['taskable_id'] = lead_id
 
         if due is not None:
             if due in self.TASK_DUE_OPTIONS:
-                url_param['date'] = due
+                url_params['date'] = due
             else:
                 raise ValueError("'due' is set to '%s', but only accepts: '%s'" \
-                % str(due), "', '".implode(self.TASK_DUE_OPTIONS))
+                % str(due), "', '".join(self.TASK_DUE_OPTIONS))
         elif due_range is not None:
             if isinstance(due_range, tuple):
                 if len(due_range) == 2:
-                    if due_range[1] > due_range[2]:
-                        url_param['send_time_from'] = due_range[2]
-                        url_param['send_time_to'] = due_range[1]
+                    if due_range[0] > due_range[1]:
+                        url_params['send_time_from'] = due_range[1]
+                        url_params['send_time_to'] = due_range[0]
                     else:
-                        url_param['send_time_from'] = due_range[1]
-                        url_param['send_time_to'] = due_range[2]
+                        url_params['send_time_from'] = due_range[0]
+                        url_params['send_time_to'] = due_range[1]
                 else:
                     raise ValueError("'due_range' must have length 2")
             else:
@@ -630,24 +1250,38 @@ class BaseAPIService(object):
 
         if status is not None:
             if status in self.TASK_STATUS_OPTIONS:
-                url_param['status'] = status
+                url_params['status'] = status
             else:
                 raise ValueError("'status' is set to '%s', but only accepts: '%s'" \
-                % str(status), "', '".implode(self.TASK_STATUS_OPTIONS))
+                % str(status), "', '".join(self.TASK_STATUS_OPTIONS))
 
         if page == -1:
-            url_param['skip_pagination'] = True
+            url_params['skip_pagination'] = True
         else:
-            url_param['page'] = page
+            url_params['page'] = page
 
-        url_param['page'] = page
+        url_params['page'] = page
 
         url_noparam = self._build_resource_url('common', 1, path, format)
-        return url_noparam, url_param
+        return url_noparam, url_params
+
+    def _get_tasks(self, task_id=None, contact_id=None, lead_id=None, deal_id=None, status=None, due=None,
+                             due_range=None, page=1, format=None):
+        """
+        PRIVATE FUNCTION to get tasks that can be called by public, single-purpose tasks functions.
+
+        RESPONSE STRUCTURE
+
+        see get_tasks() and get_task()
+        """
+        url_noparam, url_params = self._build_task_resource(task_id=task_id, contact_id=contact_id, lead_id=lead_id,
+            deal_id=deal_id, status=status, due=due, due_range=due_range, page=None, format=None)
+        return self._get_data(url_noparam, url_params)
 
     def get_tasks(self, status=None, due=None, page=1):
         """
-        Get all tasks (for owner?)
+        Returns tasks visible to the authenticated user in batches of 20.  To filter by object type or ID see
+        get_contact_tasks(), get_lead_tasks(), and get_deal_tasks().
 
         ARGUMENTS
 
@@ -673,64 +1307,115 @@ class BaseAPIService(object):
              'id': ...
              'owner_id': ...
             }
-        }]
+        }, ...]
 
         """
-        url_noparam, url_param = self._build_task_resource(status=status, due=due, page=page, format=self.format)
-        return self._get_data(url_noparam, url_param)
-
-    def get_task(self, task_id):
-        url_noparam, url_param = self._build_task_resource(task_id=task_id, format=self.format)
-        return self._get_data(url_noparam, url_param)
+        return self._get_tasks(status=status, due=due, page=page, format=self.format)
 
     def get_tasks_by_date_range(self, due_from, due_to, status=None, page=1):
         """
+        Gets all tasks meeting criteria in groups of 20
 
         ARGUMENTS
 
+        Date Range (automatically detects order)
+            date_from - tested with values of type datetime.datetime()
+            date_to - tested with values of type datetime.datetime()
         Status
             status=None - all tasks
             status='active' - incomplete tasks
             status='done' - completed tasks
-        Date Range
-            due_from - beginning of date range
-            due_to - end of date range
+        Other
+            page (default 1)
 
         RESPONSE STRUCTURE
 
         see get_tasks()
         """
-        url_noparam, url_param = self._build_task_resource(status=status, due_range=(due_from,due_to), page=page, format=self.format)
-        return self._get_data(url_noparam, url_param)
+        return self._get_tasks(status=status, due_range=(due_from,due_to), page=page, format=self.format)
+
+    def get_task(self, task_id):
+        """
+        Returns the attributes of task identified by task_id
+
+        RESPONSE STRUCTURE
+
+        {task:
+            {'due_date': ...
+             'is_overdue': ...
+             'user_id': ...
+             'account_id': ...
+             'hour': ...
+             'taskable_type': ...
+             'created_at': ...
+             'send_time': ...
+             'updated_at': ...
+             'content': ...
+             'remind': ...
+             'taskable_id': ...
+             'permissions_holder_id': ...
+             'done_at': ...
+             'date': ...
+             'done': ...
+             'id': ...
+             'owner_id': ...
+            }
+        }
+        """
+        return self._get_tasks(task_id=task_id, format=self.format)
+
+    # Relocate
+    def get_contact_tasks(self, contact_id):
+        return self._get_tasks(contact_id=contact_id, format=self.format)
+    def get_deal_tasks(self, deal_id):
+        return self._get_tasks(deal_id=deal_id, format=self.format)
+    def get_lead_tasks(self, lead_id):
+        return self._get_tasks(lead_id=lead_id, format=self.format)
+
+
 
     ##########################
     # Reminder Functions
     ##########################
 
-    def _build_reminder_url(self, reminder_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+    def _build_reminder_resource(self, reminder_id=None, contact_id=None, deal_id=None, format=None):
         """
-        Returns a URL to obtain either all reminders (reminder_id=None) or a specific reminder (reminder_id=integer).
-        For a list of reminders nested under another object, do not include a reminder_id and include one (and only one)
-        of the following parent identifiers:
-         - contact_id
-         - lead_id
-         - deal_id
-        If this is the terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+        Returns a tuple of URL (without parameters) and params to get reminders meeting the filter criteria
+
+        Parent Object (optional, include only one):
+            contact_id
+            lead_id
+            deal_id
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
         """
+        path = ''
+        url_params = dict()
+
+
         if contact_id is not None:
-            url = self._build_contact_url(contact_id)
-        elif lead_id is not None:
-            url = self._build_lead_url(lead_id)
+            path += '/contacts/%d' % contact_id
         elif deal_id is not None:
-            url = self._build_deal_url(deal_id)
-            # Add reminder data
+            path += '/deals/%d' % deal_id
         else:
             raise ValueError("Reminders URL constructor requires a valid object (lead, contact, deal).")
-        url += '/reminders'
+        path += '/reminders'
         if reminder_id is not None:
-            url += '/%s' % (reminder_id)
-        return self._apply_format(url, format)
+            path += '/%s' % reminder_id
+
+        url_noparam = self._build_resource_url('sales', 1, path, format)
+        return url_noparam, url_params
+
+    def _get_reminder(self, reminder_id=None, contact_id=None, deal_id=None, format=None):
+        url_noparam, url_params = self._build_reminder_resource(reminder_id=reminder_id, contact_id=contact_id,
+            deal_id=deal_id, format=format)
+        return self._get_data(url_noparam, url_params)
+
+    def get_contact_reminders(self, contact_id):
+        return self._get_reminder(contact_id=contact_id, format=self.format)
+    def get_deal_reminders(self, deal_id):
+        return self._get_reminder(deal_id=deal_id, format=self.format)
+    # API does not appear to support reminders for leads
 
     ##########################
     # Contact Functions and Constants
@@ -790,38 +1475,60 @@ class BaseAPIService(object):
         'calls_to_action,last'
     ]
 
-    def _build_contact_url(self, contact_id = None, company_id = None, deal_id = None, format=None):
+    def _build_contact_resource(self, contact_id=None, contact_ids=None, company_id=None, deal_id=None,
+                                page=1, per_page=None, format=None):
         """
-        Returns a URL to obtain either all contacts (contact_id=None) or a specific contact (contact_id=integer). For a
-        list of contacts nested under another object, do not include a contact_id and include one (and only one) of the
-        following parent identifiers:
-         - company_id (technically, this is the ID of the BaseCRM contact object for the company)
-         - deal_id
-        If this is the terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+        Returns a tuple of URL (without parameters) and params to get contacts that meet filter criteria in batches
+        of 20
 
-        Generates calls like:
-            https://app.futuresimple.com/apis/crm/api/v1/contacts/40905764.json
-            https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
-            https://app.futuresimple.com/apis/sales/api/v1/deals/1276628/contacts.json
+        ARGUMENTS
+
+        Object or Parent Object (optional, include only one)
+            deal_id - gets all contacts under the submitted deal_id
+            contact_ids - list of contacts
+            company_id - ID of the BaseCRM contact object for the parent company
+        Paging:
+            page (default 1)
+            per_page (API default 20) - changes the batch size of pages
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/crm/api/v1/contacts/40905764.json
+        # For contacts attached to a deal
+        https://app.futuresimple.com/apis/sales/api/v1/deals/1276628/contacts.json
+        # Multiple ID
+        https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
+        # contact_id is parent
+        https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_id=40905629&page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
         """
+        path = '/contacts'
+        url_params = dict()
+
         if deal_id is not None:
-            url = self._build_deal_url(deal_id)
-        elif company_id is not None:
-            url = self._build_contact_url(company_id)
+            # Nested under deals URL so we have to use an atypical construction
+            url_noparam, ignore_params = self._build_deal_resource(deal_id)
+            url_noparam += path
+            self._apply_format(url_noparam, format)
         else:
-            # https://app.futuresimple.com/apis/crm/api/v1/contacts.json
-            url = self._build_resource_url('crm', 1)
-            url += '/contacts'
-            # Build URL through nested checks
-        if contact_id is not None:
-            if company_id is None:
-                url += '/%s' % contact_id
-            else:
-                raise ValueError("Cannot include both a contact and company ID.")
-        return self._apply_format(url, format)
+            if contact_id is not None:
+                # Creates contacts/<id> path required for updates
+                path += '/%d' % contact_id
+            elif contact_ids is not None:
+                # Used by all get() callers to increase standardization of response
+                url_params['contact_ids'] = ','.join(str(x) for x in contact_ids)
+            elif company_id is not None:
+                url_params['contact_id'] = company_id
+            url_noparam = self._build_resource_url('crm', 1, path, format)
 
-    # Special Call
+        url_params['page'] = page
+        if per_page is not None:
+            url_params['per_page'] = per_page
+
+        return url_noparam, url_params
+
+    # Count
     # https://app.futuresimple.com/apis/crm/api/v1/contacts/count.json?page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
 
     # Related Parameters
@@ -838,65 +1545,9 @@ class BaseAPIService(object):
     # Activities
     # SEE ACTIVITIES SECTION
 
-    def search_contacts(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
+    def get_contacts(self, contact_ids=None, page=1, per_page=None):
         """
-        Response structure:
-        {'items':
-            [{'contact':
-                {'organisation_name': ...
-                 'first_name': ...
-                 'last_name': ...
-                 'user_id': ...
-                 'account_id': ...
-                 'title': ...
-                 'mobile': ...
-                 'created_at': ...
-                 'overdue_tasks': ...
-                 'is_sales_account': ...
-                 'id': ...
-                 'phone': ...
-                 'is_organisation': ...
-                 'sort_value': ...
-                 'email': ...
-                 'unread_emails': ...
-                 'name': ...
-                }
-            }],
-         'success': ...
-         'metadata': ...
-        }
-        """
-        url = self._build_search_url('contact', self.format)
-
-        valid_params = {'page' : page,}
-        if filters is not None:
-            for key, value in filters.items():
-                if key in self.CONTACT_FILTERS:
-                    if key in ['tag_ids','tags']:
-                        valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
-                            valid_params['tags_exclusivity'] = tags_exclusivity
-                        else:
-                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
-                    else:
-                        valid_params[key] = value
-                else:
-                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
-        if sort_by is not None:
-            if sort_by in self.CONTACT_SORTS:
-                valid_params['sort_by'] = sort_by
-            else:
-                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
-            if sort_order in ['asc','desc']:
-                valid_params['sort_order'] = sort_order
-            else:
-                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
-
-        return self._get_data(url_noparam, valid_params)
-
-    def get_contacts(self, page=1, per_page=20, contact_ids=None):
-        """
-        Gets contact objects in batches of (default) 20.
+        Gets full contact records (38 fields) in batches of (default) 20.
 
         Arguments:
             page (default: 1) - the page of contacts to return
@@ -944,32 +1595,117 @@ class BaseAPIService(object):
              'root_entity_name': ...
              'industry': ...
             }
-        }]
+        }, ...]
         """
-        url_noparam = self._build_contact_url()
+        url_noparam, url_params = self._build_contact_resource(contact_ids=contact_ids, page=page, per_page=per_page,
+            format=self.format)
+        return self._get_data(url_noparam, url_params)
 
-        final_params = dict()
-        final_params['page'] = page
-        final_params['per_page'] = per_page
-        # Support multiple ID requests like:
-        # https://app.futuresimple.com/apis/crm/api/v1/contacts.json?contact_ids=40905835%2C40905820&per_page=100
-        if contact_ids is not None:
-            final_params['contact_ids'] = ','.implode(contact_ids)
-        return self._get_data(url_noparam, final_params)
+    def get_deal_contacts(self, deal_id, page=1, per_page=None):
+        url_noparam, url_params = self._build_contact_resource(deal_id=deal_id, page=page, per_page=per_page,
+            format=self.format)
+        return self._get_data(url_noparam, url_params)
 
     def get_contact(self, contact_id):
         """
         Gets the contact with the given contact_id. Returns the contact info.
         """
-        url_noparam = self._build_contact_url(contact_id=contact_id, format=self.format)
-        return self._get_data(url_noparam)
+        response = self.get_contacts(contact_ids=[contact_id])
+        if len(response) > 0:
+            return response[0]
+        else:
+            return None
 
-    def _upsert_contact(self, contact_info={}, contact_id=None, person=True):
+    def search_contacts(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
         """
-        Creates a new contact if contact_id == None.
-        Otherwise, edits contact with the given id.
+        Returns short (17 field) records for contacts meeting the filter criteria and ordered by sort criteria, in
+        batches of 20
+
+        ARGUMENTS
+
+        Filter:
+            filters - dict of filters (automatically joined by AND) where the key is the field name (see CONTACT_FILTERS
+                for valid values) and the value is the matching criteria
+            tags_exclusivity - if 'tags' or 'tag_ids' are included in the filter criteria, this determines whether the
+                tags are combined using the AND or OR operator
+        Sort:
+            sort_by - a string identifying the field on which the responses should be sorted (see CONTACT_SORTS for
+                valid values)
+            sort_order - 'asc' or 'desc'
+        Paging:
+            page (default 0)
+
+        RESPONSE STRUCTURE
+
+        {'items':
+            [{'contact':
+                {'organisation_name': ...
+                 'first_name': ...
+                 'last_name': ...
+                 'user_id': ...
+                 'account_id': ...
+                 'title': ...
+                 'mobile': ...
+                 'created_at': ...
+                 'overdue_tasks': ...
+                 'is_sales_account': ...
+                 'id': ...
+                 'phone': ...
+                 'is_organisation': ...
+                 'sort_value': ...
+                 'email': ...
+                 'unread_emails': ...
+                 'name': ...
+                }
+            }, ...],
+         'success': ...
+         'metadata': ...
+        }
         """
-        url_noparam = self._build_contact_url(contact_id=contact_id, format=self.format)
+        url_noparam = self._build_search_url('contact', self.format)
+
+        valid_params = {'page' : page}
+        if filters is not None:
+            for key, value in filters.items():
+                if key in self.CONTACT_FILTERS:
+                    if key in ['tag_ids','tags']:
+                        # tags are case sensitive
+                        valid_params[key] = ','.join(value)
+                        if tags_exclusivity in ['and','or']:
+                            valid_params['tags_exclusivity'] = tags_exclusivity
+                        else:
+                            raise ValueError("tags_exclusivity must be 'and' or 'or'")
+                    else:
+                        # only lower case strings successfully match (regardless of original text case)
+                        valid_params[key] = str(value).lower()
+                else:
+                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
+        if sort_by is not None:
+            if sort_by in self.CONTACT_SORTS:
+                valid_params['sort_by'] = sort_by
+            else:
+                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
+            if sort_order in ['asc','desc']:
+                valid_params['sort_order'] = sort_order
+            else:
+                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
+
+        return self._get_data(url_noparam, valid_params)
+
+    def _upsert_contact(self, contact_info={}, contact_id=None):
+        """
+        Updates or Inserts a contact
+
+        ARGUMENTS
+
+            contact_info - dict of fields (see CONTACT_PARAMS for valid field names)
+            contact_id (optional) - contact being updated (otherwise contact will be created)
+
+        RESPONSE STRUCTURE
+
+        see get_contact()
+        """
+        url_noparam, url_params = self._build_contact_resource(contact_id=contact_id, format=self.format)
 
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
@@ -977,96 +1713,49 @@ class BaseAPIService(object):
            (contact_id == None and 'name' not in contact_info.keys() and
             'last_name' not in contact_info.keys()):
             return
-
-        final_params = {}
-        final_params['is_organisation'] = 'false'
-        if not person:
-            final_params['is_organisation'] = 'true'
+        # Keys in contact_info need to be in CONTACT_PARAMS
         for key in contact_info.keys():
             if key not in self.CONTACT_PARAMS:
-                return
-            else:
-                final_params['contact[' + key + ']'] = contact_info[key]
+                raise KeyError("'%s' is not a valid parameter for Contact creation." % key)
+
+        # To urlencode properly, the python dict key must be set to 'contact[<key>]'
+        # _key_coded_dict() is designed to automate this process
+        contact_param = _key_coded_dict({'contact': contact_info})
+        url_params.update(contact_param)
 
         if contact_id is None:
-            return self._post_data(url_noparam, final_params)
+            return self._post_data(url_noparam, url_params)
         else:
-            return self._put_data(url_noparam, final_params)
+            return self._put_data(url_noparam, url_params)
 
-    def create_contact(self, contact_info, person=True):
+    def create_contact(self, contact_info):
         """
-        Creates a new contact based on contact_info with fields shown in CONTACT_PARAMS.
-        Assumes the contact is a person.  If the contact is a company, use person=False
-        Returns a json or xml response.
-        """
-        return self._upsert_contact(contact_info=contact_info, contact_id=None, person=person)
+        Creates a new contact based on contact_info
 
-    def update_contact(self, contact_info, contact_id, person=True):
+        ARGUMENTS
+
+            contact_info - dict of fields (see CONTACT_PARAMS for valid field names)
+
+        RESPONSE STRUCTURE
+
+        see get_contact()
+        """
+        return self._upsert_contact(contact_info=contact_info, contact_id=None)
+
+    def update_contact(self, contact_info, contact_id):
         """
         Edits contact with the unique base_id based on contact_info with fields shown in CONTACT_PARAMS.
-        Assumes the contact is a person.  If the contact is a company, use person=False
-        Returns a json or xml response.
+
+        ARGUMENTS
+
+            contact_info - dict of fields (see CONTACT_PARAMS for valid field names)
+            contact_id - contact being updated
+
+        RESPONSE STRUCTURE
+
+        see get_contact()
         """
-        return self._upsert_contact(contact_info=contact_info, contact_id=contact_id, person=person)
-
-    def update_contact_tags(self, contact_id, tags, action='add'):
-        """
-        Adds, removes, or replaces tags for a contact.  Returns a json or xml response.
-        Arguments:
-        contact_id: The base id of the contact that we want to work with
-        tags: comma separated string of tags. Eg. 'platinum,trial_period'
-        action: one of the following: 'add', 'remove', 'replace'
-        """
-        contact_data_dict = self._get_data(self._build_contact_url(contact_id=contact_id, format='native'))
-        old_tags = contact_data_dict['contact']['tags_joined_by_comma'].split(', ')
-        new_tags_list = tags.split(',')
-
-        if action == 'add':
-            new_tags = _list_to_tags(list(set(new_tags_list + old_tags)))
-        elif action == 'remove':
-            for elem in new_tags_list:
-                try:
-                    old_tags.remove(elem)
-                except ValueError:
-                    pass
-            new_tags = _list_to_tags(old_tags)
-        elif action == 'replace':
-            new_tags = _list_to_tags(new_tags_list)
-
-        person = not contact_data_dict['contact']['is_organisation']
-
-        return self.update_contact(contact_info={'tag_list': new_tags}, contact_id=contact_id, person=person)
-
-    def get_contact_notes(self, contact_id, page=0):
-        return self._get_notes(contact_id=contact_id, page=page, format=self.format)
-
-    def create_contact_note(self, content, contact_id):
-        """
-        Creates a note associated with a specific contact (defined by Base's unique contact_id)
-        with the content 'content'.
-        Returns a json or xml response.
-        """
-        return self._upsert_note(content=content, contact_id=contact_id)
-
-    def update_contact_note(self, content, note_id):
-        """
-        Edits a note (defined by Base's unique contact_id and the note's unique note_id)
-        with the content content.
-        Returns a json or xml response.
-        """
-        return self._upsert_note(content=content, note_id=note_id)
-
-    # Formatted as feed
-    def get_contact_feed(self, contact_id):
-        return self._get_feed(contact_id=contact_id, format=self.format)
-    def get_contact_feed_emails(self, contact_id):
-        return self._get_feed(contact_id=contact_id, type='Email', format=self.format)
-    def get_contact_feed_notes(self, contact_id):
-        return self._get_feed(contact_id=contact_id, type='Note', format=self.format)
-    def get_contact_feed_calls(self, contact_id):
-        return self._get_feed(contact_id=contact_id, type='Call', format=self.format)
-    def get_contact_feed_tasks_completed(self, contact_id):
-        return self._get_feed(contact_id=contact_id, type='Task', format=self.format )
+        return self._upsert_contact(contact_info=contact_info, contact_id=contact_id)
 
     ##########################
     # Deals Functions and Constants
@@ -1124,33 +1813,58 @@ class BaseAPIService(object):
         'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
     ]
 
-    def _build_deal_url(self, deal_id=None, contact_id=None, format=None):
+    def _build_deal_resource(self, deal_id=None, deal_ids=None, contact_ids=None, stage=None, page=1, per_page=None, format=None):
         """
-        Returns a URL to obtain either all deals (deal_id=None) or a specific deal (lead_id=integer). For a list of
-        deals nested under another object, do not include a deal_id and include one (and only one) of the following
-        parent identifiers:
-         - contact_id
-        If this is the terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+        Returns a URL to obtain either all deals (deal_id=None) or a specific deal (lead_id=integer).
 
-        Generates appropriate code for the following calls:
-            https://app.futuresimple.com/apis/sales/api/v1/deals/by_ids.json?deal_ids=2049413%2C1283854%2C1283853%2C1283851&per_page=4
-            https://app.futuresimple.com/apis/sales/api/v1/deals.json?dont_scope_by_stage=true&deal_ids=1276628
-            https://app.futuresimple.com/apis/sales/api/v1/deals/top_deals.json
-            https://app.futuresimple.com/apis/sales/api/v2/deals/total_pipeline_worth
+        ARGUMENTS
 
-            https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
+        Object or Parent Object (include only one)
+            deal_id
+            contact_id
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        <tbd>
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/sales/api/v1/deals/by_ids.json?deal_ids=2049413%2C1283854%2C1283853%2C1283851&per_page=4
+        https://app.futuresimple.com/apis/sales/api/v1/deals.json?dont_scope_by_stage=true&deal_ids=1276628
+        https://app.futuresimple.com/apis/sales/api/v1/deals/top_deals.json
+        https://app.futuresimple.com/apis/sales/api/v2/deals/total_pipeline_worth
+
+        https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
         """
-        if contact_id is not None:
+        url_params = dict()
+        path = '/deals'
+
+        if contact_ids is not None:
             # https://app.futuresimple.com/apis/sales/api/v2/contacts/deals.json?contact_ids=40905809
-            url = self._build_resource_url('sales', 2)
-            url += '/contacts'
+            url_params['contact_ids'] = contact_ids
+            url_noparam = self._build_resource_url('sales', 2, '/contacts/deals', format)
         else:
-            url = self._build_resource_url('sales', 1)
-        url += '/deals'
-        if deal_id is not None:
-            url += '/%s' % deal_id
-        return self._apply_format(url, format)
+            if stage is None:
+                url_params['dont_scope_by_stage'] = 'true'
+            elif stage in self.DEAL_STAGES:
+                url_params['stage'] = stage
+            else:
+                raise ValueError("'%s' is not a valid stage, must come from '%s'" % str(stage), ','.join(self.DEAL_STAGES))
+
+            if deal_id is not None:
+                path += '/%d' % deal_id
+            elif deal_ids is not None:
+                # Used by all get() callers to increase standardization
+                url_params['deal_ids'] = ','.join(str(x) for x in deal_ids)
+            url_noparam = self._build_resource_url('sales', 1, path, format)
+
+        url_params['page'] = page
+        if per_page is not None:
+            url_params['per_page'] = per_page
+
+        return url_noparam, url_params
 
     # Related Parameters
     # https://app.futuresimple.com/apis/sales/api/v1/sources.json?all=true
@@ -1167,7 +1881,7 @@ class BaseAPIService(object):
 
     # https://app.futuresimple.com/apis/sales/api/v2/deals/currencies.json
 
-    # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=1
+    # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=DocumentRepository&attachable_id=null
 
     # Activities
     # SEE ACTIVITIES SECTION
@@ -1185,11 +1899,13 @@ class BaseAPIService(object):
         """
         Gets the deal with the given deal_id. Returns the deal info.
         """
-        url_noparam = self._build_deal_url(deal_id=deal_id, format=self.format)
-        return self._get_data(url_noparam)
+        url_noparam, url_params = self._build_deal_resource(deal_ids=[deal_id], format=self.format)
+        return self._get_data(url_noparam, url_params)
 
     def search_deals(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=1):
         """
+        Returns records for deals meeting the filter criteria and ordered by sort criteria, in batches of 20
+
         Native response structure:
         {'items':
             [{'deal':
@@ -1222,7 +1938,7 @@ class BaseAPIService(object):
                  'source_id': ...
                  'added_on': ...
                 }
-            }],
+            }, ...],
         'success': ...
         'metadata': ...
         }
@@ -1231,8 +1947,9 @@ class BaseAPIService(object):
 
         valid_params = dict()
         valid_params['page'] = page
+
         # Handle stage separately because it requires extra validation
-        if filters is None or  'stage' not in filters:
+        if filters is None or 'stage' not in filters:
             valid_params['dont_scope_by_stage'] = True
         elif filters['stage'] is None:
             valid_params['dont_scope_by_stage'] = True
@@ -1242,20 +1959,25 @@ class BaseAPIService(object):
             del filters['stage']
         else:
             raise ValueError('Stage must be absent, None, or a value from DEAL_STAGES.')
+
         # Handle other filters
         if filters is not None:
             for key, value in filters.items():
                 if key in self.DEAL_FILTERS:
                     if key in ['tag_ids','tags']:
+                        # tags are case sensitive
                         valid_params[key] = ','.join(value)
                         if tags_exclusivity in ['and','or']:
                             valid_params['tags_exclusivity'] = tags_exclusivity
                         else:
                             raise ValueError("tags_exclusivity must be 'and' or 'or'")
                     else:
-                        valid_params[key] = value
+                        # only lower case strings successfully match (regardless of original text case)
+                        valid_params[key] = str(value).lower()
                 else:
                     raise ValueError("%s is not a valid filter for a deal search" % (key))
+
+        # Configure sort order
         if sort_by is not None:
             if sort_by in self.DEAL_SORTS:
                 valid_params['sort_by'] = sort_by
@@ -1274,7 +1996,7 @@ class BaseAPIService(object):
         Creates a new deal if deal_id - None.
         Otherwise, edits the deal with the given deal_id.
         """
-        url_noparam = self._build_deal_url(deal_id=deal_id, format=self.format)
+        url_noparam, url_params = self._build_deal_resource(deal_id=deal_id, format=self.format)
 
         # If we are creating a new deal, we must have name and entity_id parameters
         # and we always must have some parameter
@@ -1282,7 +2004,7 @@ class BaseAPIService(object):
                                 or 'entity_id' not in deal_info.keys()) and deal_id == None):
             return "Missing required attributes 'name' or 'entity_id'"
 
-        final_params = {}
+        final_params = dict()
         for key in deal_info.keys():
             if key not in self.DEAL_PARAMS:
                 return "%s is not a legal deal attribute" % key
@@ -1298,7 +2020,7 @@ class BaseAPIService(object):
         """
         Creates a new deal in base, given proper deal parameters in deal_info argument.
         Proper parameters are shown in the DEAL_PARAMS dictionary.
-        Returns a json or xml reponse.
+        Returns a json or xml response.
         """
         return self._upsert_deal(deal_info=deal_info)
 
@@ -1309,69 +2031,6 @@ class BaseAPIService(object):
         Returns a json or xml response.
         """
         return self._upsert_deal(deal_info=deal_info, deal_id=deal_id)
-
-    def update_deal_tags(self, deal_id, tags, action='add'):
-        """
-        Adds, removes, or replaces tags for a deal.  Returns a json or xml response.
-        Arguments:
-        deal_id: The base id of the deal that we want to work with
-        tags: comma separated string of tags. Eg. 'platinum,trial_period'
-        action: one of the following: 'add', 'remove', 'replace'
-        """
-        deal_data_dict = self._get_data(self._build_deal_url(deal_id=deal_id, format='.json'))
-        old_tags = deal_data_dict['deal']['deal_tags'].split(', ')
-        new_tags_list = tags.split(',')
-
-        if action == 'add':
-            new_tags = _list_to_tags(list(set(new_tags_list + old_tags)))
-        elif action == 'remove':
-            for elem in new_tags_list:
-                try:
-                    old_tags.remove(elem)
-                except ValueError:
-                    pass
-            new_tags = _list_to_tags(old_tags)
-        elif action == 'replace':
-            new_tags = _list_to_tags(new_tags_list)
-
-        return self.update_deal(deal_info={'deal_tags': new_tags}, deal_id=deal_id)
-
-    def get_deal_notes(self, deal_id, page=0):
-        return self._get_notes(deal_id=deal_id, page=page, format=self.format)
-
-    def get_deal_note(self, deal_id, note_id):
-        """
-        Gets deal object.
-        """
-        url_noparam = self.get_note(note_id=note_id)
-        return self._get_data(url_noparam)
-
-    def create_deal_note(self, content, deal_id):
-        """
-        Creates a note associated with a specific deal (defined by Base's unique deal_id)
-        with the content 'content'.
-        Returns a json or xml response.
-        """
-        return self._upsert_note(content=content, deal_id=deal_id)
-
-    def update_deal_note(self, content, note_id):
-        """
-        Edits a note (defined by Base's unique deal_id and the note's unique note_id)
-        with the content content.
-        Returns a json or xml response.
-        """
-        return self._upsert_note(content=content, note_id=note_id)
-
-    def get_deal_feed(self, deal_id):
-        return self._get_feed(deal_id=deal_id, format=self.format)
-    def get_deal_feed_emails(self, deal_id):
-        return self._get_feed(deal_id=deal_id, type='Email', format=self.format)
-    def get_deal_feed_notes(self, deal_id):
-        return self._get_feed(deal_id=deal_id, type='Note', format=self.format)
-    def get_deal_feed_calls(self, deal_id):
-        return self._get_feed(deal_id=deal_id, type='Call', format=self.format)
-    def get_deal_feed_tasks_completed(self, deal_id):
-        return self._get_feed(deal_id=deal_id, type='Task', format=self.format)
 
     ##########################
     # Sources Functions
@@ -1399,7 +2058,7 @@ class BaseAPIService(object):
         if other == 1:
             final_params = { 'other': other }
         else:
-            final_params = {}
+            final_params = dict()
 
         return self._get_data(url_noparam, final_params)
 
@@ -1475,20 +2134,25 @@ class BaseAPIService(object):
         return self._get_data(url_noparam)
 
     def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
+        """
+        Returns records for leads meeting the filter criteria and ordered by sort criteria, in batches of 20
+        """
         url_noparam = self._build_search_url('lead', self.format)
 
-        valid_params = {'page' : page,}
+        valid_params = {'page' : page}
         if filters is not None:
             for key, value in filters.items():
                 if key in self.LEAD_FILTERS:
                     if key in ['tag_ids','tags']:
+                        # tags are case sensitive
                         valid_params[key] = ','.join(value)
                         if tags_exclusivity in ['and','or']:
                             valid_params['tags_exclusivity'] = tags_exclusivity
                         else:
                             raise ValueError("tags_exclusivity must be 'and' or 'or'")
                     else:
-                        valid_params[key] = value
+                        # only lower case strings successfully match (regardless of original text case)
+                        valid_params[key] = str(value).lower()
                 else:
                     raise ValueError("%s is not a valid filter for a Lead search" % key)
         if sort_by is not None:
@@ -1517,7 +2181,7 @@ class BaseAPIService(object):
                                 or 'entity_id' not in lead_info.keys()) and lead_id == None):
             return "Missing required attributes 'name' or 'entity_id'"
 
-        final_params = {}
+        final_params = dict()
         for key in lead_info.keys():
             if key not in self.LEAD_PARAMS:
                 return "%s is not a legal lead attribute" % key
@@ -1529,30 +2193,6 @@ class BaseAPIService(object):
         else:
             return self._put_data(url_noparam, final_params)
 
-    def get_lead_notes(self, lead_id, page=0):
-        return self._get_notes(lead_id=lead_id, page=page, format=self.format)
-    def create_lead_note(self, lead_id, content):
-        """
-        Creates a note associated with a specific lead (defined by Base's unique lead_id)
-        with the content 'content'.
-        Returns a json or xml response.
-        """
-        return self._upsert_note(content=content, lead_id=lead_id)
-
-
-    # Feed formatted
-    def get_lead_feed(self, lead_id):
-        return self._get_feed(lead_id=lead_id, format=self.format)
-    def get_lead_feed_emails(self, lead_id):
-        return self._get_feed(lead_id=lead_id, type='Email', format=self.format)
-    def get_lead_feed_notes(self, lead_id):
-        return self._get_feed(lead_id=lead_id, type='Note', format=self.format)
-    def get_lead_feed_notes_alt(self, lead_id):
-        return self._get_notes(lead_id=lead_id, format=self.format)
-    def get_lead_feed_calls(self, lead_id):
-        return self._get_feed(lead_id=lead_id, type='Call', format=self.format)
-    def get_lead_feed_tasks_completed(self, lead_id):
-        return self._get_feed(lead_id=lead_id, type='Task', format=self.format)
 
     ##########################
     # Email Functions
@@ -1599,5 +2239,5 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
     # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
-
+    # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=Deal&attachable_id=2255196
 
