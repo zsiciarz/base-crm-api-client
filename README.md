@@ -3,7 +3,7 @@ Introduction
 
 The original BaseCRM API Client (for Python) focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an enhanced version of this branch can be found under the "OfficialSupport" branch.  If FutureSimple expands their official API, we may port the relevant feature into this branch.
 
-In early 2014, it became clear that FutureSimple was not keeping the API documents up to date:
+In early 2014, it became clear that FutureSimple was not regularly updating their API documents:
 
  - Zapier was able to detect New Objects (Contacts, Deals, Leads) and changes in Deal Stages.  While it was possible to detect these by brute force (e.g. pulling down all of these objects), it seemed unlikely that this approach was used.
  - @claytondaley contacted FutureSimple to find out if searching was available through the API and was provided a URL example for an undocumented search capability.
@@ -16,7 +16,7 @@ In early 2014, it became clear that FutureSimple was not keeping the API documen
    - Additional views for Deals like top_deals, total_pipeline, and deals/by_ids (supporting multiple ids)
    - Configuration checks like integration status, voice and email preferences, etc.
  
-FutureSimple made it clear that the search function was not set in stone and the same likely applies to these additional features.  Users desiring officially supported features should download and use the limited OfficialSupport branch.  Users willing to risk intermittent issues to take advantage of these advanced features should use master.
+FutureSimple made it clear that the search functionality was not set in stone and the same likely applies to these additional features.  Users desiring officially supported features should download and use the [client from the original repo] (https://github.com/npinger/base-crm-api-client) (or the OfficialSupport branch here).  Users willing to risk intermittent issues to take advantage of a more advanced feature set should use master.
 
 NOTE:  IF YOU ARE USING THE EXPANDED CLIENT, TAKE FULL ADVANTAGE OF THE FUNCTION DOCS.  IN SOME CASES (ESPECIALLY PAGING) THE CLIENT USES INTERFACES THAT DO NOT COMPLY WITH THE DEV.FUTURESIMPLE.COM SPECIFICATION.
 
@@ -30,21 +30,21 @@ To set up a connection to base, simply run:
     from base_client import BaseAPIService
     base_conn = BaseAPIService(email="YOUR_EMAIL", password="YOUR_PASSWORD")
 
-    # This will set up a service that returns Python native (usually dict) responses.  To return json or xml, add the argument format='json' or format='xml'
+    # This will set up a service that returns Python native (i.e. dict or list) responses.  To return json or xml, add the argument format='json' or format='xml'.
 
 Then you can start working with base objects immediately.  Examples (assuming you have instantiated `base_conn` as above).
 
 Examples of getting objects:
 
-    # Return the first page of incoming deals (output will be a json response)
+    # Return the first page of incoming deals (output will be a python dict)
     base_conn.get_deals(page=1, stage='incoming')
 
-    # Return the first page of contacts (output will be a json response)
+    # Return the first page of contacts (output will be a python list)
     base_conn.get_contacts(page=1)
 
 Example creation and modification of contact:
 
-    # Create a new contact (json object will be stored as a response)
+    # Create a new contact (dict object will be stored as a response)
     response = base_conn.create_contact(contact_info={'first_name': 'John', 'last_name': 'Doe'})
 
     # Get the id of the new contact
@@ -61,13 +61,13 @@ Important Variables:
 * DEAL_STAGES - legal options for stage argument in get_deals
 * DEAL_FILTERS - a list of legal parameters for searching deals
 * DEAL_SORTS - a list of legal parameters for sorting deals
+* LEAD_PARAMS - a list of legal parameters for a lead in the `lead_info` argument.  See the [base api documentation](http://dev.futuresimple.com/api/overview) for required parameters.
 * LEAD_FILTERS - a list of legal parameters for searching leads
 * LEAD_SORTS - a list of legal parameters for sorting leads
 
-
 Available methods:
 ==================
-Please see the code itself for documentation - function headers are reasonably descriptive.  Currently, the module has limited functionality.
+Please see the code itself for documentation - function headers are reasonably descriptive.  The biggest feature missing from the current implementation is the ability to delete objects.
 
 Accounts Functions:
 * get_accounts()
@@ -161,7 +161,7 @@ Reminders
 
 Ongoing Development:
 ====================
-Because we are not using the official API specification, the client could cease to function at any time.  If you're actively using the client, we encourage you to work with us to ensure it stays up to date.
+Because we are not using the official API specification, the client could cease to function at any time.  If you're actively using the client, we encourage you to work with us to ensure it stays functional.
 
 There are also opportunities for enhancement:
 * Error handling
@@ -170,4 +170,4 @@ There are also opportunities for enhancement:
 * Unimplemented Data Fields - To populate the BaseCRM UI, there are a variety of identified calls that return lists of cities, states (i.e. regions), countries, and zip codes.
 * Unimplemented Types - Several types (emails, calls) have been identified but not implemented
 
-Feel free to get involved if you want.
+We welcome issue reports and pull requests.
