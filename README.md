@@ -1,7 +1,7 @@
 Introduction
 ============
 
-The original BaseCRM API Client focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an enhanced version of this branch can be found under the "OfficialSupport" branch.  If FutureSimple expands their official API, we may port the relevant feature into this branch.
+The original BaseCRM API Client (for Python) focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an enhanced version of this branch can be found under the "OfficialSupport" branch.  If FutureSimple expands their official API, we may port the relevant feature into this branch.
 
 In early 2014, it became clear that FutureSimple was not keeping the API documents up to date:
 
@@ -73,46 +73,101 @@ Accounts Functions:
 * get_accounts()
 
 Contacts Functions:
-* get_contacts(page=1)
+* get_contacts(contact_ids, page, per_page)
+* get_deal_contacts(deal_id, page, per_page)
 * get_contact(contact_id)
 * search_contacts(filters, sort_by, sort_order, tags_exclusivity, page)
-* create_contact(self, contact_info, person=True)
-* update_contact(self, contact_info, contact_id, person=True)
-* update_contact_tags(contact_id, tags, action='add') (other actions are "remove" or "replace")
-* get_contact_notes(contact_id,  page=0)
-* get_contact_note(contact_id, note_id)
-* create_contact_note(self, contact_id, note_content)
-* update_contact_note(self, contact_id, note_content, note_id)
+* create_contact(self, contact_info)
+* update_contact(self, contact_info, contact_id)
 
 Deals Functions:
-* get_deals(page=1, stage='incoming')
+* get_deals(page, stage)
 * get_deal(deal_id)
 * search_deals(filters, sort_by, sort_order, tags_exclusivity, page)
 * create_deal(deal_info)
 * update_deal(deal_info, deal_id)
-* update_deal_tags(deal_id, tags, action='add') (other actions are "remove" or "replace")
-* get_deal_notes(deal_id, page=0)
-* get_deal_note(deal_id, note_id)
-* create_deal_note(deal_id, note_content)
-* update_deal_note(self, deal_id, note_content, note_id)
+(Deal) Sources Functions:
+* get_sources(type)
+* get_source(source_id)
 
 Leads Functions:
-* get_leads(page=0)
+* get_leads(page, per_page)
 * get_lead(lead_id)
-* search_leads(filters, sort_by, sort_order, tags_exclusivity, page)
-* get_lead_notes(lead_id, page=0)
-* get_lead_note(lead_id, note_id)
+* search_leads(filters, sort_by, sort_order, tags_exclusivity, page, per_page)
+* create_lead(lead_info)
+* update_lead(lead_info, lead_id)
 
-Sources Functions:
-* get_sources(self, other=0)
+Feed (i.e. Activity) Functions
+* get_feed(type)
+* get_contact_feed(contact_id)
+* get_contact_feed_emails(contact_id)
+* get_contact_feed_notes(contact_id)
+* get_contact_feed_calls(contact_id)
+* get_contact_feed_tasks_completed(contact_id)
+* get_deal_feed(deal_id)
+* get_deal_feed_emails(deal_id)
+* get_deal_feed_notes(deal_id)
+* get_deal_feed_calls(deal_id)
+* get_deal_feed_tasks_completed(deal_id)
+* get_lead_feed(lead_id)
+* get_lead_feed_emails(lead_id)
+* get_lead_feed_notes(lead_id)
+* get_lead_feed_calls(lead_id)
+* get_lead_feed_tasks_completed(lead_id)
 
 Tags Functions:
-* get_tags(page=0)
+* get_tags(type, page)
+* get_tag(tag_id)
+* get_contact_tags(page)
+* get_contact_tags_alt(page)
+* get_deal_tags(page)
+* get_lead_tags(page)
+* tag_contacts(tag_list, contact_ids)
+* untag_contacts(tag, contact_ids)
+* retag_contact(tag_list, contact_id)
+* update_contact_tags(taglist_contact_id)
+* tag_deals(tag_list, deal_ids)
+* untag_deals(tag, deal_ids)
+* retag_deal(tag_list, deal_id)
+* update_deal_tags(taglist_deal_id)
+* tag_leads(tag_list, lead_ids)
+* untag_leads(tag, lead_ids)
+* retag_lead(tag_list, lead_id)
+* update_lead_tags(taglist_lead_id)
+
+Notes
+* get_notes(page)
+* get_note(note_id)
+* update_note(content, note_id)
+* get_contact_notes(contact_id,  page=0)
+* create_contact_note(self, contact_id, note_content)
+* update_contact_note(self, contact_id, note_content, note_id)
+* get_deal_notes(deal_id, page=0)
+* create_deal_note(deal_id, note_content)
+* update_deal_note(self, deal_id, note_content, note_id)
+* get_lead_notes(lead_id, page=0)
+
+Tasks
+* get_tasks(status, due, page)
+* get_tasks_by_date_range(due_from, due_to, status, page)
+* get_task(task_id)
+* get contact_tasks(contact_id)
+* get deal_tasks(deal_id)
+* get lead_tasks(lead_id)
+
+Reminders
+* get_contact_reminders(contact_id)
+* get_deal_reminders(deal_id)
 
 Ongoing Development:
 ====================
-This was put together relatively quickly.  There are a couple of areas where improvements will be necessary:
+Because we are not using the official API specification, the client could cease to function at any time.  If you're actively using the client, we encourage you to work with us to ensure it stays up to date.
+
+There are also opportunities for enhancement:
 * Error handling
-* Filling out methods to deal with all types of objects
+* Optional arguments - Several optional arguments (like per_page) may work on more functions than currently implemented.
+* Metadata - Some of the get and search calls return metadata that could be processed and cached (or used to support functions returning exclusively metadata).  In other cases, summary data (e.g. counts) are supported through special API calls.
+* Unimplemented Data Fields - To populate the BaseCRM UI, there are a variety of identified calls that return lists of cities, states (i.e. regions), countries, and zip codes.
+* Unimplemented Types - Several types (emails, calls) have been identified but not implemented
 
 Feel free to get involved if you want.
