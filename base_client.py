@@ -28,20 +28,24 @@ Current API paging:
 
                     PAGING                          RESPONSE STRUCTURE
                     0               1               Items Key   Success Field   Fields
-                                                                w/ Object
+                                                    (1)         w/ Object (1)
 Contacts (API)      duplicates 1    beginning       False                       38
 Deals (API)         404             beginning       False       False           28
 Leads (API)         beginning       2nd page        True        True            14
+Sources (API)       N/A             N/A             False       False           6
 Contacts (search)   beginning       2nd page        True        False           17
 Deals (search)      duplicates 1    beginning       True        True            28
 Leads (search)      beginning       2nd page        True        True            14
 
-Tags                duplicates 1    beginning       False
-Notes               duplicates 1    beginning       False
-Feed                (encrypted)     (encrypted)     True
-Tasks               duplicates 1    beginning       False       False               18
+Tags                duplicates 1    beginning       False       False           3
+Notes               duplicates 1    beginning       False       False           10
+Feed                (encrypted)     (encrypted)     True        True            8 (2)
+Tasks               duplicates 1    beginning       False       False           18
 Emails              TBD             TBD
 
+(1) When the items key is present, a success and metadata key are also present.  For some objects, a success field is
+also passed inside the individual item's dictionary (e.g. ['lead'] or ['deal'] )
+(2) Deeply nested in other keys (e.g. response['items'][0]['feed_items']['attributes'] )
 """
 
 class BaseAPIService(object):
@@ -216,7 +220,7 @@ class BaseAPIService(object):
         elif type == 'deal':
             url, params = self._build_deal_resource()
         elif type == 'lead':
-            url = self._build_lead_url()
+            url, params = self._build_lead_resource()
         else:
             raise ValueError("Invalid search type.")
         url += '/search'
@@ -323,7 +327,7 @@ class BaseAPIService(object):
         url_noparam = self._build_resource_url('feeder', 1, path, format)
         return url_noparam, url_params
 
-    def get_feed(self, contact_id=None, lead_id=None, deal_id=None, type=None, format=None):
+    def _get_feed(self, contact_id=None, lead_id=None, deal_id=None, type=None, format=None):
         """
         Returns the most recent 20 activities (i.e. feed) that meet the filter conditions
 
@@ -341,6 +345,27 @@ class BaseAPIService(object):
             type='Task' returns only completed tasks
         Format:
             format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see get_feed()
+        """
+        url_noparam, url_params = self._build_feed_resource(contact_id=contact_id, deal_id=deal_id, lead_id=lead_id, 
+            type=type, format=format)
+        return self._get_data(url_noparam, url_params)
+
+    def get_feed(self, type=None):
+        """
+        Returns the most recent 20 activities (i.e. feed) that meet the filter conditions
+
+        ARGUMENTS
+
+        Activity Types:
+            type=None (default) - load all types
+            type='Email' returns only emails
+            type='Note' returns only notes
+            type='Call' returns only phone calls
+            type='Task' returns only completed tasks
 
         RESPONSE STRUCTURE
 
@@ -378,16 +403,14 @@ class BaseAPIService(object):
         For 'deal_stage_change':
         'user_id', 'account_id', 'created_at', 'to_stage_name', 'to_stage', 'from_stage', 'from_stage_name', 'id',
         'deal_id'
-        
+
         For 'synced_email':
         ['status', 'addresses', 'from', 'sender', 'to', 'synced_email_thread_id', 'created_at', 'attachments', 'bcc',
         'content', 'sha', 'mailbox_type', 'reply_to', 'related_objects', 'date', 'seen', 'internal_forwarded_from',
         'id', 'cc', 'subject']
 
         """
-        url_noparam, url_params = self._build_feed_resource(contact_id=contact_id, deal_id=deal_id, lead_id=lead_id, 
-            type=type, format=format)
-        return self._get_data(url_noparam, url_params)
+        return self._get_feed(type=type, format=self.format)
 
     def get_contact_feed(self, contact_id):
         return self._get_feed(contact_id=contact_id, format=self.format)
@@ -996,7 +1019,7 @@ class BaseAPIService(object):
 
         RESPONSE STRUCTURE
 
-        see get_notes() and get_note()
+        see get_notes(), get_note()
         """
         url_noparam, url_params = self._build_note_resource(note_id=note_id, contact_id=contact_id, deal_id=deal_id,
             lead_id=lead_id, page=page, format=format)
@@ -1272,7 +1295,7 @@ class BaseAPIService(object):
 
         RESPONSE STRUCTURE
 
-        see get_tasks() and get_task()
+        see get_tasks(), get_task()
         """
         url_noparam, url_params = self._build_task_resource(task_id=task_id, contact_id=contact_id, lead_id=lead_id,
             deal_id=deal_id, status=status, due=due, due_range=due_range, page=None, format=None)
@@ -1709,10 +1732,10 @@ class BaseAPIService(object):
 
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
-        if contact_info == {} or\
-           (contact_id == None and 'name' not in contact_info.keys() and
-            'last_name' not in contact_info.keys()):
-            return
+        if contact_info is None or contact_info == {} or \
+           (contact_id is None and 'name' not in contact_info.keys() and 'last_name' not in contact_info.keys()):
+            raise KeyError("Contact record must include 'contact_id' or a name ('name' or 'last_name')")
+
         # Keys in contact_info need to be in CONTACT_PARAMS
         for key in contact_info.keys():
             if key not in self.CONTACT_PARAMS:
@@ -1815,7 +1838,7 @@ class BaseAPIService(object):
 
     def _build_deal_resource(self, deal_id=None, deal_ids=None, contact_ids=None, stage=None, page=1, per_page=None, format=None):
         """
-        Returns a URL to obtain either all deals (deal_id=None) or a specific deal (lead_id=integer).
+        Returns a tuple of URL (without parameters) and params to get deal objects meeting filter criteria
 
         ARGUMENTS
 
@@ -1867,10 +1890,6 @@ class BaseAPIService(object):
         return url_noparam, url_params
 
     # Related Parameters
-    # https://app.futuresimple.com/apis/sales/api/v1/sources.json?all=true
-    # https://app.futuresimple.com/apis/sales/api/v1/sources.json?other=true
-    # https://app.futuresimple.com/apis/sales/api/v1/sources.json?auto=true
-
     # https://app.futuresimple.com/apis/sales/api/v1/stages.json?detailed=true
 
     # https://app.futuresimple.com/apis/sales/api/v1/loss_reasons.json
@@ -1992,16 +2011,23 @@ class BaseAPIService(object):
 
     def _upsert_deal(self, deal_info={}, deal_id=None):
         """
-        PRIVATE FUNCTION:
-        Creates a new deal if deal_id - None.
-        Otherwise, edits the deal with the given deal_id.
+        Updates or Inserts a deal
+
+        ARGUMENTS
+
+            deal_info - dict of fields (see DEAL_PARAMS for valid field names)
+            deal_id (optional) - deal being updated (otherwise new deal will be created)
+
+        RESPONSE STRUCTURE
+
+        see get_deal()
         """
         url_noparam, url_params = self._build_deal_resource(deal_id=deal_id, format=self.format)
 
         # If we are creating a new deal, we must have name and entity_id parameters
         # and we always must have some parameter
-        if deal_info == {} or (('name' not in deal_info.keys()\
-                                or 'entity_id' not in deal_info.keys()) and deal_id == None):
+        if deal_info is None or (deal_id is None and
+                                 ('name' not in deal_info.keys() or 'entity_id' not in deal_info.keys())):
             return "Missing required attributes 'name' or 'entity_id'"
 
         final_params = dict()
@@ -2018,49 +2044,127 @@ class BaseAPIService(object):
 
     def create_deal(self, deal_info):
         """
-        Creates a new deal in base, given proper deal parameters in deal_info argument.
-        Proper parameters are shown in the DEAL_PARAMS dictionary.
-        Returns a json or xml response.
+        Creates a new deal based on deal_info
+
+        ARGUMENTS
+
+            deal_info - dict of fields (see CONTACT_PARAMS for valid field names)
+
+        RESPONSE STRUCTURE
+
+        see get_deal()
         """
         return self._upsert_deal(deal_info=deal_info)
 
     def update_deal(self, deal_info, deal_id):
         """
-        Updates a deal with the given the base deal_id accoring to deal_info parameters.
-        Proper parameters are shown in the DEAL_PARAMS dictionary.
-        Returns a json or xml response.
+        Edits deal with the unique base_id based on deal_info with fields shown in CONTACT_PARAMS.
+
+        ARGUMENTS
+
+            deal_info - dict of fields (see CONTACT_PARAMS for valid field names)
+            deal_id - deal being updated
+
+        RESPONSE STRUCTURE
+
+        see get_deal()
         """
         return self._upsert_deal(deal_info=deal_info, deal_id=deal_id)
 
     ##########################
     # Sources Functions
     ##########################
-    def _build_sources_url(self, source_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+    SOURCES_VALUES = ['all','mine','auto']
+
+    def _build_sources_resource(self, source_id=None, type='all', format=None):
         """
-        Returns a URL to obtain either all sources (source_id=None) or a specific source (source_id=integer). If this is
-        the terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+        Returns a tuple of URL (without parameters) and params to get source objects meeting filter criteria
+
+        ARGUMENTS
+
+        Object ID (do not combine with type):
+            source_id - the ID of the source record
+        Type (do not combine with source_id):
+            type='all' (default) - list all sources, regardless of who created them
+            type='mine' - only list sources created by authenticated user
+            type='auto' - (unknown behavior)
+
+        RESPONSE STRUCTURE
+
+        see get_sources(), get_source()
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/sales/api/v1/sources.json?all=true
+        https://app.futuresimple.com/apis/sales/api/v1/sources.json?other=true
+        https://app.futuresimple.com/apis/sales/api/v1/sources.json?auto=true
         """
-        url = self._build_resource_url('sales',1)
-        url += '/sources'
+        path = '/sources'
+        url_params = dict()
+
         if source_id is not None:
-            url += '/%s' % (source_id)
-        return self._apply_format(url, format)
-
-    def get_sources(self, other=0):
-        """
-        Gets contact sources.
-        Argument:
-            other: default to 0.  If 1, retrieves sources added by other users in the account.
-        """
-        url_noparam = self._build_sources_url(format=self.format)
-
-        if other == 1:
-            final_params = { 'other': other }
+            path += '/%d' % source_id
         else:
-            final_params = dict()
+            if type in self.SOURCES_VALUES:
+                if type == 'all':
+                    url_params['other'] = 1
+                elif type == 'auto':
+                    url_params['auto'] = 1
+            else:
+                raise ValueError("'type' was set to '%s', but must come from '%s'" % str(type), "', '".join())
 
-        return self._get_data(url_noparam, final_params)
+        url_noparam = self._build_resource_url('sales', 1, path, format)
+        return url_noparam, url_params
+
+    def get_sources(self, type='auto'):
+        """
+        Get all records for sources (of deals) of the indicated type
+
+        ARGUMENTS
+
+        Type:
+            type='all' (default) - list all sources, regardless of who created them
+            type='mine' - only list sources created by authenticated user
+            type='auto' - (unknown behavior)
+
+        RESPONSE STRUCTURE
+
+        [{'source':
+            {'created_at': ...
+             'id': ...
+             'name': ...
+             'permissions_holder_id': ...
+             'updated_at': ...
+             'user_id': ...
+            }
+        }, ...]
+        """
+        url_noparam, url_params = self._build_sources_resource(type=type, format=self.format)
+        return self._get_data(url_noparam, url_params)
+
+    def get_source(self, source_id):
+        """
+        Get record for source (of deals) indicated by source_id
+
+        ARGUMENTS
+
+            source_id - the ID of the source record
+
+        RESPONSE STRUCTURE
+
+        {'source': 
+            {'created_at': ...
+             'id': ...
+             'name': ...
+             'permissions_holder_id': ...
+             'updated_at': ...
+             'user_id': ...
+            }
+        }
+        """
+        url_noparam, url_params = self._build_sources_resource(source_id=source_id, format=self.format)
+        return self._get_data(url_noparam, url_params)
+
 
     ##########################
     # Lead Functions and Constants
@@ -2090,22 +2194,66 @@ class BaseAPIService(object):
         'user_id',
         ]
 
-    def _build_lead_url(self, lead_id = None, format=None):
-        """
-        Returns a URL to obtain either all leads (lead_id=None) or a specific lead (lead_id=integer). If this is the
-        terminal object, include a format:
-         - SEE BaseAPIService._apply_format() FOR ACCEPTED VALUES
+    LEAD_PARAMS = [
+        'lead_id',
+        'last_name',
+        'company_name',
+        'first_name',
+        'email',
+        'phone',
+        'mobile',
+        'twitter',
+        'skype',
+        'facebook',
+        'linkedin',
+        'street',
+        'city',
+        'region',
+        'zip',
+        'country',
+        'title',
+        'description',
+# Valid for contacts, check for leads
+#        'industry',
+#        'website',
+#        'fax',
+#        'tag_list',
+#        'private',
+    ]
 
-        Builds requests like:
-            https://app.futuresimple.com/apis/leads/api/v1/leads.json?ids=7787301&per_page=1
-            https://app.futuresimple.com/apis/leads/api/v1/leads.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true&using_search=false&page=0&converting=false
-            https://app.futuresimple.com/apis/leads/api/v1/leads/search.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true
+    def _build_lead_resource(self, lead_id=None, page=None, per_page=None, format=None):
         """
-        url = self._build_resource_url('leads', 1)
-        url += '/leads'
+        Returns a tuple of URL (without parameters) and params to get lead objects meeting filter criteria
+
+        ARGUMENTS
+
+        Object ID:
+            lead_id -
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see get_leads(), get_lead()
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/leads/api/v1/leads.json?ids=7787301&per_page=1
+        https://app.futuresimple.com/apis/leads/api/v1/leads.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true&using_search=false&page=0&converting=false
+        """
+        path = '/leads'
+        url_params = dict()
+
         if lead_id is not None:
-            url += '/%s' % lead_id
-        return self._apply_format(url, format)
+            path += '/%d' % lead_id
+        if page is not None:
+            url_params['page'] = page
+        if per_page is not None:
+            url_params['per_page'] = per_page
+
+        url_noparam = self._build_resource_url('leads', 1, path, format)
+        return url_noparam, url_params
+
 
     # Related Parameters
     # https://app.futuresimple.com/apis/leads/api/v1/statuses.json
@@ -2116,30 +2264,122 @@ class BaseAPIService(object):
     # Activities
     # SEE ACTIVITIES SECTION
 
-    def get_leads(self, page=0):
+    def get_leads(self, page=0, per_page=20):
         """
-        Gets lead objects in batches of 20.
-        Arguments:
+        Gets lead objects in batches of 20
+
+        ARGUMENTS
+
             page - the set of leads to return. 0 (default) returns the first 20.
+
+        RESPONSE STRUCTURE
+
+        {'items':
+            [{'lead':
+                {'first_name': ...
+                 'last_name': ...
+                 'user_id': ...
+                 'account_id': ...
+                 'sort_value': ...
+                 'created_at': ...
+                 'last_activity_date': ...
+                 'conversion_name': ...
+                 'state': ...
+                 'company_name': ...
+                 'display_name': ...
+                 'id': ...
+                 'added_on': ...
+                 'owner_id': ...
+                }
+              'success': ...
+              'metatdata': ...
+            }, ...],
+         'success': ...
+         'metadata': ...
+        }
         """
-        url_noparam = self._build_lead_url(format=self.format)
-        final_params = { 'page': page }
-        return self._get_data(url_noparam, final_params)
+        url_noparam, url_params = self._build_lead_resource(page=page, per_page=per_page, format=self.format)
+        return self._get_data(url_noparam, url_params)
 
     def get_lead(self, lead_id):
         """
-        Gets the lead with the given lead_id. Returns the lead info.
-        """
-        url_noparam = self._build_lead_url(lead_id=lead_id, format=self.format)
-        return self._get_data(url_noparam)
+        Gets the lead with the given lead_id
 
-    def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0):
+        ARGUMENTS
+
+            lead_id - the ID of a lead
+
+        RESPONSE STRUCTURE
+
+        {'lead':
+            {'first_name': ...
+             'last_name': ...
+             'user_id': ...
+             'account_id': ...
+             'sort_value': ...
+             'created_at': ...
+             'last_activity_date': ...
+             'conversion_name': ...
+             'state': ...
+             'company_name': ...
+             'display_name': ...
+             'id': ...
+             'added_on': ...
+             'owner_id': ...
+            }
+          'success': ...
+          'metatdata': ...
+        }
         """
-        Returns records for leads meeting the filter criteria and ordered by sort criteria, in batches of 20
+        url_noparam, url_params = self._build_lead_resource(lead_id=lead_id, format=self.format)
+        return self._get_data(url_noparam, url_params)
+
+    def search_leads(self, filters=None, sort_by=None, sort_order='asc', tags_exclusivity='and', page=0, per_page=20):
+        """
+        Returns records for leads meeting the filter criteria and ordered by sort criteria, in batches
+
+        ARGUMENTS
+
+        Paging:
+            page (default 0) - the set of leads to return
+            per_page - the number of objects listed on each page
+
+        RESPONSE STRUCTURE
+
+        {'items':
+            [{'lead':
+                {'first_name': ...
+                 'last_name': ...
+                 'user_id': ...
+                 'account_id': ...
+                 'sort_value': ...
+                 'created_at': ...
+                 'last_activity_date': ...
+                 'conversion_name': ...
+                 'state': ...
+                 'company_name': ...
+                 'display_name': ...
+                 'id': ...
+                 'added_on': ...
+                 'owner_id': ...
+                }
+              'success': ...
+              'metatdata': ...
+            }, ...],
+         'success': ...
+         'metadata': ...
+        }
+
+        REAL CALLS THIS FUNCTION SHOULD SIMULATE
+
+        https://app.futuresimple.com/apis/leads/api/v1/leads/search.json?sort_by=last_name&sort_order=asc&tags_exclusivity=and&without_unqualified=true
         """
         url_noparam = self._build_search_url('lead', self.format)
+        valid_params = dict()
 
-        valid_params = {'page' : page}
+        valid_params['page'] = page
+        valid_params['per_page'] = per_page
+
         if filters is not None:
             for key, value in filters.items():
                 if key in self.LEAD_FILTERS:
@@ -2155,6 +2395,7 @@ class BaseAPIService(object):
                         valid_params[key] = str(value).lower()
                 else:
                     raise ValueError("%s is not a valid filter for a Lead search" % key)
+
         if sort_by is not None:
             if sort_by in self.LEAD_SORTS:
                 valid_params['sort_by'] = sort_by
@@ -2169,30 +2410,67 @@ class BaseAPIService(object):
 
     def _upsert_lead(self, lead_info={}, lead_id=None):
         """
-        PRIVATE FUNCTION:
-        Creates a new lead if lead_id - None.
-        Otherwise, edits the lead with the given lead_id.
+        Updates or Inserts a lead
+
+        ARGUMENTS
+
+            lead_info - dict of fields (see DEAL_PARAMS for valid field names)
+            lead_id (optional) - lead being updated (otherwise new lead will be created)
+
+        RESPONSE STRUCTURE
+
+        see get_lead()
         """
-        url_noparam = self._build_lead_url(lead_id=lead_id, format=self.format)
+        url_noparam, url_params = self._build_lead_resource(lead_id=lead_id, format=self.format)
 
         # If we are creating a new lead, we must have name and entity_id parameters
         # and we always must have some parameter
-        if lead_info == {} or (('name' not in lead_info.keys()\
-                                or 'entity_id' not in lead_info.keys()) and lead_id == None):
-            return "Missing required attributes 'name' or 'entity_id'"
+        if lead_info is None or (lead_id is None and 'last_name' not in lead_info.keys() and
+                                 'company_name' not in lead_info.keys()):
+            raise KeyError("Lead record must include 'lead_id' or a name ('last_name' or 'company_name')")
 
-        final_params = dict()
+        lead_params = dict()
         for key in lead_info.keys():
             if key not in self.LEAD_PARAMS:
-                return "%s is not a legal lead attribute" % key
+                raise KeyError("'%s' is not a legal lead attribute" % key)
             else:
-                final_params[key] = lead_info[key]
+                lead_params[key] = lead_info[key]
+
+        url_params.update(_key_coded_dict({'lead': lead_params}))
 
         if lead_id is None:
-            return self._post_data(url_noparam, final_params)
+            return self._post_data(url_noparam, url_params)
         else:
-            return self._put_data(url_noparam, final_params)
+            return self._put_data(url_noparam, url_params)
 
+    def create_lead(self, lead_info):
+        """
+        Creates a new lead based on lead_info
+
+        ARGUMENTS
+
+            lead_info - dict of fields (see CONTACT_PARAMS for valid field names)
+
+        RESPONSE STRUCTURE
+
+        see get_lead()
+        """
+        return self._upsert_lead(lead_info=lead_info)
+
+    def update_lead(self, lead_info, lead_id):
+        """
+        Edits lead with the unique base_id based on lead_info with fields shown in CONTACT_PARAMS.
+
+        ARGUMENTS
+
+            lead_info - dict of fields (see CONTACT_PARAMS for valid field names)
+            lead_id - lead being updated
+
+        RESPONSE STRUCTURE
+
+        see get_lead()
+        """
+        return self._upsert_lead(lead_info=lead_info, lead_id=lead_id)
 
     ##########################
     # Email Functions
