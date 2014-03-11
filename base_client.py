@@ -24,28 +24,39 @@ def _key_coded_dict(d):
 
 """
 
-Current API paging:
+API CHARACTERISTICS
 
-                    PAGING                          RESPONSE STRUCTURE
-                    0               1               Items Key   Success Field   Fields
+Due to a relatively low level of standardization among BaseCRM resources, this table has been accumulated
+
+FIELD               PAGING                          RESPONSE STRUCTURE
+Name (interface)    0               1               Items Key   Success Field   Fields
                                                     (1)         w/ Object (1)
-Contacts (API)      duplicates 1    beginning       False                       38
+Contacts (API)      duplicates 1    beginning       False       False           38
 Deals (API)         404             beginning       False       False           28
 Leads (API)         beginning       2nd page        True        True            14
 Sources (API)       N/A             N/A             False       False           6
-Contacts (search)   beginning       2nd page        True        False           17
+
+Contacts (search)   beginning       2nd page        True        False           17 (2)
 Deals (search)      duplicates 1    beginning       True        True            28
 Leads (search)      beginning       2nd page        True        True            14
 
 Tags                duplicates 1    beginning       False       False           3
 Notes               duplicates 1    beginning       False       False           10
-Feed                (encrypted)     (encrypted)     True        True            8 (2)
+Feed                (3)             (3)             True        True            8 (4)
 Tasks               duplicates 1    beginning       False       False           18
 Emails              TBD             TBD
 
-(1) When the items key is present, a success and metadata key are also present.  For some objects, a success field is
-also passed inside the individual item's dictionary (e.g. ['lead'] or ['deal'] )
-(2) Deeply nested in other keys (e.g. response['items'][0]['feed_items']['attributes'] )
+(1) Some calls return a simple list of items (indicated in the table by 'False').  Others (indicated in the table by
+True) return a dict, nesting the list of items under an 'items' key.
+
+(2) While the search response for Leads and Deals returns the same fields as the get() calls, note that the search
+interface for contacts returns a shorter (17 record) response.
+
+(3) While the feed is paged, it does not use the standard page= interface. Instead, small changes can be seen in a
+timestamp= parameter.  Unfortunately, the composition of this parameter (mixed case alphanumerics using the full
+alphabet) is non-obvious so we are (at present) unable to reproduce it.
+
+(4) These records are nested one deeper than standard responses (i.e. response['items'][0]['feed_items']['attributes'] )
 """
 
 class BaseAPIService(object):
@@ -299,7 +310,7 @@ class BaseAPIService(object):
         https://app.futuresimple.com/apis/feeder/api/v1/feed/deal/1290465.json?timestamp=null&api_mailman=v2&only=Call
         https://app.futuresimple.com/apis/feeder/api/v1/feed/deal/1290465.json?timestamp=null&api_mailman=v2&only=Task
 
-        PAGING (spaces introduced to empahsize minor differences between URLs)
+        PAGING (spaces introduced to emphasize minor differences between URLs)
         https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQx NTE 3MjAx LCJsYXN0X25vdGVfaWQiOj EwNjE 0MzE zLCJsYXN0X2xlYWRfaWQiOjc3ODczMDEsImxhc3RfZGVhbF9zdGFnZV9jaGFuZ2VfaWQiOjc3MTY2NSwibGFzdF9kZWFsX2lkIjoxMjc2NjQ3fQ
         https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 3NTg1 LCJsYXN0X25vdGVfaWQiOj YzNDM yNDE sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
         https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=eyJsYXN0X2NvbnRhY3RfaWQiOjQw OTA 1NzY1 LCJsYXN0X25vdGVfaWQiOj YzNDM wOTk sImxhc3RfbGVhZF9pZCI6Nzc4NzMwMSwibGFzdF9kZWFsX3N0YWdlX2NoYW5nZV9pZCI6NzcxNjY1LCJsYXN0X2RlYWxfaWQiOjEyNzY2Mjh9
@@ -1034,7 +1045,7 @@ class BaseAPIService(object):
 
         Paging:
             page
-        
+
         RESPONSE STRUCTURE
 
         [{'note':
@@ -1058,7 +1069,7 @@ class BaseAPIService(object):
         Gets the attributes for the given note_id
 
         RESPONSE STRUCTURE
-        
+
         {'note':
             {'user_id': ...
              'account_id': ...
@@ -2152,7 +2163,7 @@ class BaseAPIService(object):
 
         RESPONSE STRUCTURE
 
-        {'source': 
+        {'source':
             {'created_at': ...
              'id': ...
              'name': ...

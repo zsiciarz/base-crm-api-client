@@ -164,6 +164,7 @@ Ongoing Development:
 Because we are not using the official API specification, the client could cease to function at any time.  If you're actively using the client, we encourage you to work with us to ensure it stays functional.
 
 There are also opportunities for enhancement:
+* Naming Conventions - As the API has expanded, some of the calls (in particular tags) don't fit as cleanly in the original naming scheme.  Optimally, we would 
 * Error handling
 * Optional arguments - Several optional arguments (like per_page) may work on more functions than currently implemented.
 * Metadata - Some of the get and search calls return metadata that could be processed and cached (or used to support functions returning exclusively metadata).  In other cases, summary data (e.g. counts) are supported through special API calls.
