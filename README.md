@@ -164,11 +164,11 @@ Ongoing Development:
 Because we are not using the official API specification, the client could cease to function at any time.  If you're actively using the client, we encourage you to work with us to ensure it stays functional.
 
 There are also opportunities for enhancement:
-* Naming Conventions - As the API has expanded, some of the calls (in particular tags) don't fit as cleanly in the original naming scheme.  Optimally, we would 
-* Error handling
-* Optional arguments - Several optional arguments (like per_page) may work on more functions than currently implemented.
+* Naming Conventions - As the API has expanded, some of the calls (in particular tags) don't fit as cleanly in the original naming scheme.  A standard naming scheme should be established and documented with due consideration given to not-yet-implemented API calls.
+* Error handling - There is presently no effort to catch and handle errors during the API call and only transient efforts to check types and values.
+* Optional arguments - Several optional arguments (like per_page) may work on more functions than currently implemented.  We should generate a document to keep track of which parameters have been tested against which calls to avoid unnecesarry duplication of tests.
 * Metadata - Some of the get and search calls return metadata that could be processed and cached (or used to support functions returning exclusively metadata).  In other cases, summary data (e.g. counts) are supported through special API calls.
-* Unimplemented Data Fields - To populate the BaseCRM UI, there are a variety of identified calls that return lists of cities, states (i.e. regions), countries, and zip codes.
-* Unimplemented Types - Several types (emails, calls) have been identified but not implemented
+* Unimplemented Data Fields - To populate the BaseCRM UI, there are a variety of identified calls that return lists of cities, states (i.e. "regions"), countries, and zip codes.
+* Unimplemented Types - API calls to several object types (emails, calls) have been identified but not implemented
 
 We welcome issue reports and pull requests.
