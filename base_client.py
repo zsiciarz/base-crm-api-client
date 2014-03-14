@@ -57,6 +57,7 @@ timestamp= parameter.  Unfortunately, the composition of this parameter (mixed c
 alphabet) is non-obvious so we are (at present) unable to reproduce it.
 
 (4) These records are nested one deeper than standard responses (i.e. response['items'][0]['feed_items']['attributes'] )
+
 """
 
 class BaseAPIService(object):
@@ -261,7 +262,7 @@ class BaseAPIService(object):
     ##########################
     # Feed (i.e. Activity) Functions
     #
-    # NOTE: there is some overlap between the functionality of feeds and notes
+    # NOTE: feeds overlap to some degree with tasks (completed only) and notes
     ##########################
     def _build_feed_resource(self, contact_id=None, lead_id=None, deal_id=None, type=None, format=None):
         """
@@ -985,6 +986,8 @@ class BaseAPIService(object):
 
     ##########################
     # Notes Functions
+    #
+    # NOTE: notes overlap to some degree with feeds
     ##########################
     def _build_note_resource(self, note_id=None, contact_id=None, deal_id=None, lead_id=None, page=None, format=None):
         """
@@ -1204,6 +1207,8 @@ class BaseAPIService(object):
 
     ##########################
     # Tasks Functions
+    #
+    # NOTE: tasks overlap to some degree with feeds (completed only)
     ##########################
 
     TASK_STATUS_OPTIONS = ['active','done']
