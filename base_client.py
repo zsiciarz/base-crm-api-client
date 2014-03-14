@@ -1453,6 +1453,22 @@ class BaseAPIService(object):
 
     ##########################
     # Contact Functions and Constants
+    #
+    # NOT YET IMPLEMENTED
+    #
+    # Count
+    # https://app.futuresimple.com/apis/crm/api/v1/contacts/count.json?page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
+    #
+    # Related Parameters
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/cities
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/regions
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/countries
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/zip_codes
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?filterable=true
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?sortable=true
+    # https://app.futuresimple.com/apis/crm/api/v1/custom_field_values/grouped.json
+    #
+    # https://app.futuresimple.com/apis/common/api/v1/feed/account_contacts_privacy.json
     ##########################
     CONTACT_PARAMS = [
         'name',
@@ -1561,23 +1577,6 @@ class BaseAPIService(object):
             url_params['per_page'] = per_page
 
         return url_noparam, url_params
-
-    # Count
-    # https://app.futuresimple.com/apis/crm/api/v1/contacts/count.json?page=1&tags_exclusivity=and&crm_list=true&sort_by=calls_to_action%2Cfirst&using_search=false
-
-    # Related Parameters
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/cities
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/regions
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/countries
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields/zip_codes
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?filterable=true
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_fields.json?sortable=true
-    # https://app.futuresimple.com/apis/crm/api/v1/custom_field_values/grouped.json
-
-    # https://app.futuresimple.com/apis/common/api/v1/feed/account_contacts_privacy.json
-
-    # Activities
-    # SEE ACTIVITIES SECTION
 
     def get_contacts(self, contact_ids=None, page=1, per_page=None):
         """
@@ -1793,6 +1792,21 @@ class BaseAPIService(object):
 
     ##########################
     # Deals Functions and Constants
+    #
+    # NOT YET IMPLEMENTED
+    #
+    # Related Parameters
+    # https://app.futuresimple.com/apis/sales/api/v1/stages.json?detailed=true
+    #
+    # https://app.futuresimple.com/apis/sales/api/v1/loss_reasons.json
+    #
+    # https://app.futuresimple.com/apis/sales/api/v1/deal_custom_fields.json
+    # https://app.futuresimple.com/apis/sales/api/v1/deal_custom_fields.json?sortable=true
+    # https://app.futuresimple.com/apis/sales/api/v1/custom_field_values/grouped.json
+    #
+    # https://app.futuresimple.com/apis/sales/api/v2/deals/currencies.json
+    #
+    # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=DocumentRepository&attachable_id=null
     ##########################
     DEAL_PARAMS = [
         'name',
@@ -1899,22 +1913,6 @@ class BaseAPIService(object):
             url_params['per_page'] = per_page
 
         return url_noparam, url_params
-
-    # Related Parameters
-    # https://app.futuresimple.com/apis/sales/api/v1/stages.json?detailed=true
-
-    # https://app.futuresimple.com/apis/sales/api/v1/loss_reasons.json
-
-    # https://app.futuresimple.com/apis/sales/api/v1/deal_custom_fields.json
-    # https://app.futuresimple.com/apis/sales/api/v1/deal_custom_fields.json?sortable=true
-    # https://app.futuresimple.com/apis/sales/api/v1/custom_field_values/grouped.json
-
-    # https://app.futuresimple.com/apis/sales/api/v2/deals/currencies.json
-
-    # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=DocumentRepository&attachable_id=null
-
-    # Activities
-    # SEE ACTIVITIES SECTION
 
     def get_deals(self, page=1, stage=None):
         """
@@ -2179,6 +2177,14 @@ class BaseAPIService(object):
 
     ##########################
     # Lead Functions and Constants
+    #
+    # NOT YET IMPLEMENTED
+    #
+    # Related Parameters
+    # https://app.futuresimple.com/apis/leads/api/v1/statuses.json
+    #
+    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields.json?sortable=true
+    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields/filterable.json
     ##########################
     LEAD_FILTERS = [
         'tag_ids',
@@ -2264,16 +2270,6 @@ class BaseAPIService(object):
 
         url_noparam = self._build_resource_url('leads', 1, path, format)
         return url_noparam, url_params
-
-
-    # Related Parameters
-    # https://app.futuresimple.com/apis/leads/api/v1/statuses.json
-
-    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields.json?sortable=true
-    # https://app.futuresimple.com/apis/leads/api/v1/custom_fields/filterable.json
-
-    # Activities
-    # SEE ACTIVITIES SECTION
 
     def get_leads(self, page=0, per_page=20):
         """
@@ -2485,42 +2481,46 @@ class BaseAPIService(object):
 
     ##########################
     # Email Functions
-    ##########################
-
+    #
+    # NOT YET IMPLEMENTED
+    #
     # V1
     # https://app.futuresimple.com/apis/mailman/api/v1/email_profile.json
     # https://app.futuresimple.com/apis/mailman/api/v1/email_profiles/check.json
-
+    #
     # V2
     # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json
     # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json?postpone=true
-
+    #
     # Inbox
     # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=inbox&page=1&fields=items%2Ctotal_count&content=none
-
+    #
     # Sent
     # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=outbox&page=1&fields=items%2Ctotal_count&content=none
-
+    #
     # Archived
     # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=archived&page=1&fields=items%2Ctotal_count&content=none
-
+    #
     # Untracked
     # https://app.futuresimple.com/apis/mailman/api/v1/synced_emails/other.json?page=1
-
+    ##########################
 
     ##########################
     # Call Functions
-    ##########################
-
+    #
+    # NOT YET IMPLEMENTED
+    #
     # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
     # https://app.futuresimple.com/apis/voice/api/v1/call_lists.json
     # https://app.futuresimple.com/apis/voice/api/v1/call_outcomes.json
     # https://app.futuresimple.com/apis/voice/api/v1/call_scripts.json
+    ##########################
 
     ##########################
     # Miscellaneous Functions
-    ##########################
-
+    #
+    # NOT YET IMPLEMENTED
+    #
     # https://app.futuresimple.com/apis/core/api/v2/startup.json
     # https://app.futuresimple.com/apis/sales/api/v1/dashboard.json
     # https://app.futuresimple.com/apis/core/api/v1/public/currencies.json
@@ -2529,4 +2529,5 @@ class BaseAPIService(object):
     # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
     # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
     # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=Deal&attachable_id=2255196
+    ##########################
 
