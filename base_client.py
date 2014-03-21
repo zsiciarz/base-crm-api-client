@@ -52,9 +52,9 @@ True) return a dict, nesting the list of items under an 'items' key.
 (2) While the search response for Leads and Deals returns the same fields as the get() calls, note that the search
 interface for contacts returns a shorter (17 record) response.
 
-(3) While the feed is paged, it does not use the standard page= interface. Instead, small changes can be seen in a
-timestamp= parameter.  Unfortunately, the composition of this parameter (mixed case alphanumerics using the full
-alphabet) is non-obvious so we are (at present) unable to reproduce it.
+(3) While the feed is paged, it does not use the standard page= interface. Instead, the page is managed through the
+timestamp= parameter.  The first page is obtained by sending "?timestamp=null".  The timestamp for subsequent pages is
+included in the metadata of the previous page.
 
 (4) These records are nested one deeper than standard responses (i.e. response['items'][0]['feed_items']['attributes'] )
 
