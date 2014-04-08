@@ -31,6 +31,12 @@ To set up a connection to base, simply run:
     base_conn = BaseAPIService(email="YOUR_EMAIL", password="YOUR_PASSWORD")
 
     # This will set up a service that returns Python native (i.e. dict or list) responses.  To return json or xml, add the argument format='json' or format='xml'.
+    
+Alternatively, supply an API token:
+    
+    base_conn = BaseAPIService(token="YOUR_API_TOKEN")
+    
+(You can find your API token in Settings -> Manage Account.)
 
 Then you can start working with base objects immediately.  Examples (assuming you have instantiated `base_conn` as above).
 
