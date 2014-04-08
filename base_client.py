@@ -68,7 +68,7 @@ class BaseAPIService(object):
         'xml'
     ]
 
-    def __init__(self, token=None, email=None, password=None, format='native'):
+    def __init__(self, email=None, password=None, token=None, format='native'):
         """
         Gets a login token for base, and set the format for response objects.
 
