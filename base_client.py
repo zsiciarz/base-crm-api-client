@@ -70,13 +70,14 @@ class BaseAPIService(object):
 
     def __init__(self, email=None, password=None, token=None, format='native'):
         """
-        Gets a login token for base, and set the format for response objects.
+        Authenticate with base, and set the format for response objects.
 
         ARGUMENTS
 
         Credentials:
             email
             password
+            token - An existing API token; use either email + password or token
         Format:
             format='native' (default) - All public functions return native python objects (generally lists and dicts)
             format='json' - All public functions return strings of JSON objects
