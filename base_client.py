@@ -68,7 +68,7 @@ class BaseAPIService(object):
         'xml'
     ]
 
-    def __init__(self, email, password, format='native'):
+    def __init__(self, token=None, email=None, password=None, format='native'):
         """
         Gets a login token for base, and set the format for response objects.
 
@@ -84,17 +84,22 @@ class BaseAPIService(object):
         """
         if format in self.FORMAT_OPTIONS:
             self.format = format
-
-        # Get token
-        status, self.token = self._get_login_token(email=email, password=password)
-        if status == "ERROR":
-            # If we get an error, return it.
-            logger.error(self.token)
-            self.auth_failed = True
+        # We already have a (possibly valid) token
+        if token is not None:
+            self.token = token
+            self.auth_failed = False
         else:
+            # Get token
+            status, self.token = self._get_login_token(email=email, password=password)
+            if status == "ERROR":
+                # If we get an error, return it.
+                logger.error(self.token)
+                self.auth_failed = True
+            else:
+                self.auth_failed = False
+        if not self.auth_failed:
             # Set URL header for future requests
             self.header = {"X-Pipejump-Auth": self.token, "X-Futuresimple-Token": self.token}
-            self.auth_failed = False
 
     ##########################
     # Token Functions
