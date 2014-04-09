@@ -5,22 +5,25 @@ import json
 
 logger = logging.getLogger(__name__)
 
+
 def _unicode_dict(d):
     new_dict = dict()
     for k, v in d.iteritems():
         new_dict[k] = unicode(v).encode('utf-8')
     return new_dict
 
+
 def _key_coded_dict(d):
     new_dict = dict()
     for k, v in d.iteritems():
-        if isinstance(d,dict):
+        if isinstance(d, dict):
             for k2, v2 in v.iteritems():
                 combined_key = k + '[' + k2 + ']'
                 new_dict[combined_key] = v2
         else:
             new_dict[k] = v
     return new_dict
+
 
 """
 
@@ -60,8 +63,8 @@ included in the metadata of the previous page.
 
 """
 
-class BaseAPIService(object):
 
+class BaseAPIService(object):
     FORMAT_OPTIONS = [
         'native',
         'json',
@@ -118,7 +121,7 @@ class BaseAPIService(object):
 
             token (string)
         """
-        url_noparam = self._build_resource_url('sales',1) + '/authentication.json'
+        url_noparam = self._build_resource_url('sales', 1) + '/authentication.json'
         url_params = urllib.urlencode({
             'email': email,
             'password': password,
@@ -225,7 +228,7 @@ class BaseAPIService(object):
     # response, URL builder functions (returning just a url string) are being replaced with "resource" functions
     # returning a tuple of URL string (excluding parameters) and parameter dict.
     ##########################
-    def _build_resource_url(self, resource, version, path = '', format=None):
+    def _build_resource_url(self, resource, version, path='', format=None):
         """
         Builds a URL for a resource using the not-officially-documented format:
             https://app.futuresimple.com/apis/<resource>/api/v<version>/<path>.<format>
@@ -328,7 +331,7 @@ class BaseAPIService(object):
         path = '/feed'
         url_params = dict()
 
-        url_params['api_mailman']='v2'
+        url_params['api_mailman'] = 'v2'
 
         if contact_id is not None:
             path += "/contact/%d" % contact_id
@@ -338,10 +341,11 @@ class BaseAPIService(object):
             path += "/deal/%d" % deal_id
 
         if type is not None:
-            if type in ['Email','Note','Call','Task']:
+            if type in ['Email', 'Note', 'Call', 'Task']:
                 url_params['only'] = type
             else:
-                raise ValueError("'%s' is not a valid type, must be None, 'Email', 'Note', 'Call', or 'Task'" % str(type))
+                raise ValueError(
+                    "'%s' is not a valid type, must be None, 'Email', 'Note', 'Call', or 'Task'" % str(type))
 
         url_noparam = self._build_resource_url('feeder', 1, path, format)
         return url_noparam, url_params
@@ -369,8 +373,8 @@ class BaseAPIService(object):
 
         see get_feed()
         """
-        url_noparam, url_params = self._build_feed_resource(contact_id=contact_id, deal_id=deal_id, lead_id=lead_id, 
-            type=type, format=format)
+        url_noparam, url_params = self._build_feed_resource(contact_id=contact_id, deal_id=deal_id, lead_id=lead_id,
+                                                            type=type, format=format)
         return self._get_data(url_noparam, url_params)
 
     def get_feed(self, type=None):
@@ -433,36 +437,49 @@ class BaseAPIService(object):
 
     def get_contact_feed(self, contact_id):
         return self._get_feed(contact_id=contact_id, format=self.format)
+
     def get_contact_feed_emails(self, contact_id):
         return self._get_feed(contact_id=contact_id, type='Email', format=self.format)
+
     def get_contact_feed_notes(self, contact_id):
         return self._get_feed(contact_id=contact_id, type='Note', format=self.format)
+
     def get_contact_feed_calls(self, contact_id):
         return self._get_feed(contact_id=contact_id, type='Call', format=self.format)
+
     def get_contact_feed_tasks_completed(self, contact_id):
-        return self._get_feed(contact_id=contact_id, type='Task', format=self.format )
+        return self._get_feed(contact_id=contact_id, type='Task', format=self.format)
 
     def get_deal_feed(self, deal_id):
         return self._get_feed(deal_id=deal_id, format=self.format)
+
     def get_deal_feed_emails(self, deal_id):
         return self._get_feed(deal_id=deal_id, type='Email', format=self.format)
+
     def get_deal_feed_notes(self, deal_id):
         return self._get_feed(deal_id=deal_id, type='Note', format=self.format)
+
     def get_deal_feed_calls(self, deal_id):
         return self._get_feed(deal_id=deal_id, type='Call', format=self.format)
+
     def get_deal_feed_tasks_completed(self, deal_id):
         return self._get_feed(deal_id=deal_id, type='Task', format=self.format)
 
     def get_lead_feed(self, lead_id):
         return self._get_feed(lead_id=lead_id, format=self.format)
+
     def get_lead_feed_emails(self, lead_id):
         return self._get_feed(lead_id=lead_id, type='Email', format=self.format)
+
     def get_lead_feed_notes(self, lead_id):
         return self._get_feed(lead_id=lead_id, type='Note', format=self.format)
+
     def get_lead_feed_notes_alt(self, lead_id):
         return self._get_notes(lead_id=lead_id, format=self.format)
+
     def get_lead_feed_calls(self, lead_id):
         return self._get_feed(lead_id=lead_id, type='Call', format=self.format)
+
     def get_lead_feed_tasks_completed(self, lead_id):
         return self._get_feed(lead_id=lead_id, type='Task', format=self.format)
 
@@ -535,16 +552,16 @@ class BaseAPIService(object):
         # Translates between object types and friendly names
         if type == 'Contact':
             # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=4
-            app_id=4
+            app_id = 4
         elif type == 'ContactAlt':
             # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=7
-            app_id=7
+            app_id = 7
         elif type == 'Deal':
             # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=1
-            app_id=1
+            app_id = 1
         elif type == 'Lead':
             # https://app.futuresimple.com/apis/tags/api/v1/tags.json?app_id=5
-            app_id=5
+            app_id = 5
         else:
             raise ValueError("type was '%s' but must be 'Contact', 'ContactAlt', 'Deal', or 'Lead'" % str(type))
 
@@ -574,6 +591,7 @@ class BaseAPIService(object):
         NOTE: Due to an underlying ambiguity in the API, see also get_contact_tags_alt()
         """
         return self.get_tags('Contact', page)
+
     def get_contact_tags_alt(self, page=1):
         """
         Returns tags associated with Contacts in batches of 20
@@ -581,11 +599,13 @@ class BaseAPIService(object):
         NOTE: Due to an underlying ambiguity in the API, see also get_contact_tags()
         """
         return self.get_tags('ContactAlt', page)
+
     def get_deal_tags(self, page=1):
         """
         Returns tags associated with Deals in batches of 20
         """
         return self.get_tags('Deal', page)
+
     def get_lead_tags(self, page=1):
         """
         Returns tags associated with Leads in batches of 20
@@ -594,16 +614,20 @@ class BaseAPIService(object):
 
     def _upsert_tag(self):
         raise NotImplementedError
+
     def update_tag(self):
         raise NotImplementedError
+
     def create_contact_tag(self):
-        app_id=4
+        app_id = 4
         raise NotImplementedError
+
     def create_deal_tag(self):
-        app_id=1
+        app_id = 1
         raise NotImplementedError
+
     def create_lead_tag(self):
-        app_id=5
+        app_id = 5
         raise NotImplementedError
 
     def _build_taggings_resource(self, tag_list, method='add', contact_id=None, deal_id=None, lead_id=None,
@@ -658,10 +682,10 @@ class BaseAPIService(object):
             elif lead_id is not None:
                 url_params['taggable_id'] = lead_id
                 url_params['taggable_type'] = 'Lead'
-        elif method in ['add','remove']:
+        elif method in ['add', 'remove']:
             if method == 'add':
                 path += '/batch_add'
-            else: # method == 'replace'
+            else:  # method == 'replace'
                 path += '/batch_untag'
             # Only plural ids values are compatible
             if contact_ids is not None:
@@ -718,7 +742,7 @@ class BaseAPIService(object):
         """
         method = 'add'
         if not isinstance(tag_list, list):
-            tag_list=[tag_list]
+            tag_list = [tag_list]
         else:
             # Ensure None (if present) is not translated into a string
             # lower() because UI implementation of tags seems to assume case insensitivity, but API is case sensitive
@@ -742,11 +766,12 @@ class BaseAPIService(object):
             raise ValueError('_add_tags request must include a valid object')
 
         url_noparam, url_params = self._build_taggings_resource(tag_list=tag_list, method=method,
-            contact_ids=contacts, deal_ids=deals, lead_ids=leads, format=self.format)
+                                                                contact_ids=contacts, deal_ids=deals, lead_ids=leads,
+                                                                format=self.format)
         return self._post_data(url_noparam, url_params)
 
     def _remove_tag(self, tag, contact_id=None, deal_id=None, lead_id=None,
-                  contact_ids=None, deal_ids=None, lead_ids=None):
+                    contact_ids=None, deal_ids=None, lead_ids=None):
         """
         PRIVATE FUNCTION that enforces data integrity rules for removing tags, to be called by public single-purpose
         tag functions.
@@ -778,24 +803,26 @@ class BaseAPIService(object):
         NOTE: Only includes objects where the tag was removed.  If no objects were affected, the value of
         'untagged_ids' is None (rather than an empty list).
         """
-        method='remove'
+        method = 'remove'
         # The remove method only supports a single tag.  Since most other tag methods support lists of tags, we
         # explicitly check that the input in valid.
         if isinstance(tag, list):
             raise ValueError("'tag' does not accept a list")
-        if  ',' in tag:
+        if ',' in tag:
             raise ValueError("'tag' may not include a comma as only one tag can be removed at a time")
 
         # _build_taggings_resource only accepts a list of tags so we recast our single tag appropriately
-        if tag: # ensure None is not translated into a string
+        if tag:  # ensure None is not translated into a string
             # lower() because UI implementation of tags seems to assume case insensitivity, but API is case sensitive
             tag = [str(tag).lower()]
         else:
-            tag = [] # The API considers this a valid request so we don't bother raising an error
+            tag = []  # The API considers this a valid request so we don't bother raising an error
 
         url_noparam, url_params = self._build_taggings_resource(tag_list=tag, method=method, contact_id=contact_id,
-            deal_id=deal_id, lead_id=lead_id, contact_ids=contact_ids, deal_ids=deal_ids, lead_ids=lead_ids,
-            format=self.format)
+                                                                deal_id=deal_id, lead_id=lead_id,
+                                                                contact_ids=contact_ids, deal_ids=deal_ids,
+                                                                lead_ids=lead_ids,
+                                                                format=self.format)
         return self._post_data(url_noparam, url_params)
 
     def _replace_tags(self, tag_list, contact_id=None, deal_id=None, lead_id=None):
@@ -823,7 +850,7 @@ class BaseAPIService(object):
 
         NOTE: Lists ids of all tags included in tag_list
         """
-        method='replace'
+        method = 'replace'
         if not isinstance(tag_list, list):
             raise ValueError("'tag_list' must be a list")
         else:
@@ -832,7 +859,7 @@ class BaseAPIService(object):
             tag_list = [str(x).lower() for x in tag_list if x]
 
         url_noparam, url_params = self._build_taggings_resource(tag_list=tag_list, method=method, contact_id=contact_id,
-            deal_id=deal_id, lead_id=lead_id, format=self.format)
+                                                                deal_id=deal_id, lead_id=lead_id, format=self.format)
         return self._post_data(url_noparam, url_params)
 
     def tag_contacts(self, tag_list, contact_ids):
@@ -851,6 +878,7 @@ class BaseAPIService(object):
         if not isinstance(contact_ids, list):
             contact_ids = [contact_ids]
         return self._add_tags(tag_list=tag_list, contact_ids=contact_ids)
+
     def untag_contacts(self, tag, contact_ids):
         """
         Removes one tag from one or more contacts
@@ -866,7 +894,8 @@ class BaseAPIService(object):
         """
         if not isinstance(contact_ids, list):
             contact_ids = [contact_ids]
-        return self._remove_tag(tag=tag,  contact_ids=contact_ids)
+        return self._remove_tag(tag=tag, contact_ids=contact_ids)
+
     def retag_contact(self, tag_list, contact_id):
         """
         Replaces all tags for contact_id with tags in tag_list
@@ -881,6 +910,7 @@ class BaseAPIService(object):
         see _replace_tags()
         """
         return self._replace_tags(tag_list=tag_list, contact_id=contact_id)
+
     def update_contact_tags(self, tag_list, contact_id):
         """
         Alias for retag_contact():  Replaces all tags for contact_id with tags in tag_list
@@ -903,6 +933,7 @@ class BaseAPIService(object):
         if not isinstance(deal_ids, list):
             deal_ids = [deal_ids]
         return self._add_tags(tag_list=tag_list, deal_ids=deal_ids)
+
     def untag_deals(self, tag, deal_ids):
         """
         Removes one tag from one or more deals
@@ -918,7 +949,8 @@ class BaseAPIService(object):
         """
         if not isinstance(deal_ids, list):
             deal_ids = [deal_ids]
-        return self._remove_tag(tag=tag,  deal_ids=deal_ids)
+        return self._remove_tag(tag=tag, deal_ids=deal_ids)
+
     def retag_deal(self, tag_list, deal_id):
         """
         Replaces all tags for deal_id with tags in tag_list
@@ -933,6 +965,7 @@ class BaseAPIService(object):
         see _replace_tags()
         """
         return self._replace_tags(tag_list=tag_list, deal_id=deal_id)
+
     def update_deal_tags(self, tag_list, deal_id):
         """
         Alias for retag_deal():  Replaces all tags for deal_id with tags in tag_list
@@ -955,6 +988,7 @@ class BaseAPIService(object):
         if not isinstance(lead_ids, list):
             lead_ids = [lead_ids]
         return self._add_tags(tag_list=tag_list, lead_ids=lead_ids)
+
     def untag_leads(self, tag, lead_ids):
         """
         Removes one tag from one or more leads
@@ -970,7 +1004,8 @@ class BaseAPIService(object):
         """
         if not isinstance(lead_ids, list):
             lead_ids = [lead_ids]
-        return self._remove_tag(tag=tag,  lead_ids=lead_ids)
+        return self._remove_tag(tag=tag, lead_ids=lead_ids)
+
     def retag_lead(self, tag_list, lead_id):
         """
         Replaces all tags for lead_id with tags in tag_list
@@ -985,6 +1020,7 @@ class BaseAPIService(object):
         see _replace_tags()
         """
         return self._replace_tags(tag_list=tag_list, lead_id=lead_id)
+
     def update_lead_tags(self, tag_list, lead_id):
         """
         Alias for retag_lead():  Replaces all tags for lead_id with tags in tag_list
@@ -1043,7 +1079,7 @@ class BaseAPIService(object):
         see get_notes(), get_note()
         """
         url_noparam, url_params = self._build_note_resource(note_id=note_id, contact_id=contact_id, deal_id=deal_id,
-            lead_id=lead_id, page=page, format=format)
+                                                            lead_id=lead_id, page=page, format=format)
         return self._get_data(url_noparam, url_params)
 
     def get_notes(self, page=1):
@@ -1120,7 +1156,7 @@ class BaseAPIService(object):
         python dicts.
         """
         url_noparams, note_params = self._build_note_resource(note_id=note_id, contact_id=contact_id, deal_id=deal_id,
-            lead_id=lead_id, format=format)
+                                                              lead_id=lead_id, format=format)
 
         note_params['content'] = content
         url_params = _key_coded_dict({'note': note_params})
@@ -1154,6 +1190,7 @@ class BaseAPIService(object):
         see get_note()
         """
         return self._get_notes(contact_id=contact_id, page=page, format=self.format)
+
     def create_contact_note(self, content, contact_id):
         """
         Creates a note associated with a specific contact (defined by Base's unique contact_id)
@@ -1164,6 +1201,7 @@ class BaseAPIService(object):
         see get_note()
         """
         return self._upsert_note(content=content, contact_id=contact_id)
+
     def update_contact_note(self, content, note_id):
         """
         Edits a note (the note's unique note_id) with the content content.
@@ -1177,6 +1215,7 @@ class BaseAPIService(object):
 
     def get_deal_notes(self, deal_id, page=0):
         return self._get_notes(deal_id=deal_id, page=page, format=self.format)
+
     def create_deal_note(self, content, deal_id):
         """
         Creates a note associated with a specific deal (defined by Base's unique deal_id)
@@ -1184,6 +1223,7 @@ class BaseAPIService(object):
         Returns a json or xml response.
         """
         return self._upsert_note(content=content, deal_id=deal_id)
+
     def update_deal_note(self, content, note_id):
         """
         Edits a note (defined by Base's unique deal_id and the note's unique note_id)
@@ -1194,6 +1234,7 @@ class BaseAPIService(object):
 
     def get_lead_notes(self, lead_id, page=0):
         return self._get_notes(lead_id=lead_id, page=page, format=self.format)
+
     def create_lead_note(self, content, lead_id):
         """
         Creates a note associated with a specific lead (defined by Base's unique lead_id)
@@ -1201,6 +1242,7 @@ class BaseAPIService(object):
         Returns a json or xml response.
         """
         return self._upsert_note(content=content, lead_id=lead_id)
+
     def update_lead_note(self, content, note_id):
         """
         Edits a note (the note's unique note_id) with the content content.
@@ -1218,12 +1260,11 @@ class BaseAPIService(object):
     # NOTE: tasks overlap to some degree with feeds (completed only)
     ##########################
 
-    TASK_STATUS_OPTIONS = ['active','done']
-    TASK_DUE_OPTIONS = ['today','tomorrow','this_week','overdue','no_due_date']
+    TASK_STATUS_OPTIONS = ['active', 'done']
+    TASK_DUE_OPTIONS = ['today', 'tomorrow', 'this_week', 'overdue', 'no_due_date']
 
     # Count
     # https://app.futuresimple.com/apis/common/api/v1/tasks/context_count.json?page=1&status=done&_=1394056005668
-
 
     def _build_task_resource(self, task_id=None, contact_id=None, lead_id=None, deal_id=None, status=None, due=None,
                              due_range=None, page=1, format=None):
@@ -1278,8 +1319,8 @@ class BaseAPIService(object):
             if due in self.TASK_DUE_OPTIONS:
                 url_params['date'] = due
             else:
-                raise ValueError("'due' is set to '%s', but only accepts: '%s'" \
-                % str(due), "', '".join(self.TASK_DUE_OPTIONS))
+                raise ValueError("'due' is set to '%s', but only accepts: '%s'" % str(due),
+                                 "', '".join(self.TASK_DUE_OPTIONS))
         elif due_range is not None:
             if isinstance(due_range, tuple):
                 if len(due_range) == 2:
@@ -1298,8 +1339,8 @@ class BaseAPIService(object):
             if status in self.TASK_STATUS_OPTIONS:
                 url_params['status'] = status
             else:
-                raise ValueError("'status' is set to '%s', but only accepts: '%s'" \
-                % str(status), "', '".join(self.TASK_STATUS_OPTIONS))
+                raise ValueError("'status' is set to '%s', but only accepts: '%s'" % str(status),
+                                 "', '".join(self.TASK_STATUS_OPTIONS))
 
         if page == -1:
             url_params['skip_pagination'] = True
@@ -1312,7 +1353,7 @@ class BaseAPIService(object):
         return url_noparam, url_params
 
     def _get_tasks(self, task_id=None, contact_id=None, lead_id=None, deal_id=None, status=None, due=None,
-                             due_range=None, page=1, format=None):
+                   due_range=None, page=1, format=None):
         """
         PRIVATE FUNCTION to get tasks that can be called by public, single-purpose tasks functions.
 
@@ -1321,7 +1362,8 @@ class BaseAPIService(object):
         see get_tasks(), get_task()
         """
         url_noparam, url_params = self._build_task_resource(task_id=task_id, contact_id=contact_id, lead_id=lead_id,
-            deal_id=deal_id, status=status, due=due, due_range=due_range, page=None, format=None)
+                                                            deal_id=deal_id, status=status, due=due,
+                                                            due_range=due_range, page=page, format=format)
         return self._get_data(url_noparam, url_params)
 
     def get_tasks(self, status=None, due=None, page=1):
@@ -1378,7 +1420,7 @@ class BaseAPIService(object):
 
         see get_tasks()
         """
-        return self._get_tasks(status=status, due_range=(due_from,due_to), page=page, format=self.format)
+        return self._get_tasks(status=status, due_range=(due_from, due_to), page=page, format=self.format)
 
     def get_task(self, task_id):
         """
@@ -1413,17 +1455,16 @@ class BaseAPIService(object):
     # Relocate
     def get_contact_tasks(self, contact_id):
         return self._get_tasks(contact_id=contact_id, format=self.format)
+
     def get_deal_tasks(self, deal_id):
         return self._get_tasks(deal_id=deal_id, format=self.format)
+
     def get_lead_tasks(self, lead_id):
         return self._get_tasks(lead_id=lead_id, format=self.format)
-
-
 
     ##########################
     # Reminder Functions
     ##########################
-
     def _build_reminder_resource(self, reminder_id=None, contact_id=None, deal_id=None, format=None):
         """
         Returns a tuple of URL (without parameters) and params to get reminders meeting the filter criteria
@@ -1437,7 +1478,6 @@ class BaseAPIService(object):
         """
         path = ''
         url_params = dict()
-
 
         if contact_id is not None:
             path += '/contacts/%d' % contact_id
@@ -1454,13 +1494,15 @@ class BaseAPIService(object):
 
     def _get_reminder(self, reminder_id=None, contact_id=None, deal_id=None, format=None):
         url_noparam, url_params = self._build_reminder_resource(reminder_id=reminder_id, contact_id=contact_id,
-            deal_id=deal_id, format=format)
+                                                                deal_id=deal_id, format=format)
         return self._get_data(url_noparam, url_params)
 
     def get_contact_reminders(self, contact_id):
         return self._get_reminder(contact_id=contact_id, format=self.format)
+
     def get_deal_reminders(self, deal_id):
         return self._get_reminder(deal_id=deal_id, format=self.format)
+
     # API does not appear to support reminders for leads
 
     ##########################
@@ -1505,16 +1547,16 @@ class BaseAPIService(object):
         'fax',
         'tag_list',
         'private',
-        ]
+    ]
 
     CONTACT_FILTERS = [
         'user_id',
-        'city', # All lower
-        'region', # All lower
-        'zip', # NOT zip_code as listed in aggregate
-        'country', # All lower
-        'tag_ids', # Comma (%2C) separated in URL
-        'tags', # All lower; Comma (%2C) separated in URL
+        'city',  # All lower
+        'region',  # All lower
+        'zip',  # NOT zip_code as listed in aggregate
+        'country',  # All lower
+        'tag_ids',  # Comma (%2C) separated in URL
+        'tags',  # All lower; Comma (%2C) separated in URL
     ]
 
     CONTACT_SORTS = [
@@ -1644,12 +1686,12 @@ class BaseAPIService(object):
         }, ...]
         """
         url_noparam, url_params = self._build_contact_resource(contact_ids=contact_ids, page=page, per_page=per_page,
-            format=self.format)
+                                                               format=self.format)
         return self._get_data(url_noparam, url_params)
 
     def get_deal_contacts(self, deal_id, page=1, per_page=None):
         url_noparam, url_params = self._build_contact_resource(deal_id=deal_id, page=page, per_page=per_page,
-            format=self.format)
+                                                               format=self.format)
         return self._get_data(url_noparam, url_params)
 
     def get_contact(self, contact_id):
@@ -1710,14 +1752,14 @@ class BaseAPIService(object):
         """
         url_noparam = self._build_search_url('contact', self.format)
 
-        valid_params = {'page' : page}
+        valid_params = {'page': page}
         if filters is not None:
             for key, value in filters.items():
                 if key in self.CONTACT_FILTERS:
-                    if key in ['tag_ids','tags']:
+                    if key in ['tag_ids', 'tags']:
                         # tags are case sensitive
                         valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
+                        if tags_exclusivity in ['and', 'or']:
                             valid_params['tags_exclusivity'] = tags_exclusivity
                         else:
                             raise ValueError("tags_exclusivity must be 'and' or 'or'")
@@ -1725,16 +1767,16 @@ class BaseAPIService(object):
                         # only lower case strings successfully match (regardless of original text case)
                         valid_params[key] = str(value).lower()
                 else:
-                    raise ValueError("%s is not a valid filter for a Contact search" % (key))
+                    raise ValueError("%s is not a valid filter for a Contact search" % key)
         if sort_by is not None:
             if sort_by in self.CONTACT_SORTS:
                 valid_params['sort_by'] = sort_by
             else:
-                raise ValueError("%s is not a valid sort field for a Contact search" % (key))
-            if sort_order in ['asc','desc']:
+                raise ValueError("%s is not a valid sort field for a Contact search" % sort_by)
+            if sort_order in ['asc', 'desc']:
                 valid_params['sort_order'] = sort_order
             else:
-                raise ValueError("%s is not a valid sort order for a Contact search" % (sort_order))
+                raise ValueError("%s is not a valid sort order for a Contact search" % sort_order)
 
         return self._get_data(url_noparam, valid_params)
 
@@ -1756,7 +1798,7 @@ class BaseAPIService(object):
         # If we are creating a new contact, we must have name and last_name parameters
         # and we always must have some parameter
         if contact_info is None or contact_info == {} or \
-           (contact_id is None and 'name' not in contact_info.keys() and 'last_name' not in contact_info.keys()):
+                (contact_id is None and 'name' not in contact_info.keys() and 'last_name' not in contact_info.keys()):
             raise KeyError("Contact record must include 'contact_id' or a name ('name' or 'last_name')")
 
         # Keys in contact_info need to be in CONTACT_PARAMS
@@ -1830,7 +1872,7 @@ class BaseAPIService(object):
         'contact_ids',
         'source_id',
         'stage',
-        ]
+    ]
 
     DEAL_STAGES = [
         'incoming',
@@ -1843,7 +1885,7 @@ class BaseAPIService(object):
         'won',
         'lost',
         'unqualified',
-        ]
+    ]
 
     DEAL_FILTERS = [
         'currency',
@@ -1852,7 +1894,7 @@ class BaseAPIService(object):
         # tags (e.g. tag text) not available in deals
         'user_id',
         'hot',
-        ]
+    ]
 
     DEAL_SORTS = [
         'account_id',
@@ -1862,7 +1904,7 @@ class BaseAPIService(object):
         'entity_id',
         'hot',
         'id',
-        'last_activity', # Alias for (otherwise not available) updated_at
+        'last_activity',  # Alias for (otherwise not available) updated_at
         'last_stage_change_at',
         'loss_reason_id',
         'name',
@@ -1871,10 +1913,12 @@ class BaseAPIService(object):
         'stage_code',
         'user_id'
         # In sort_value if submitted, otherwise not returned:
-        'source', # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
+        'source',
+        # Pulls full source record (user_id, name, created_at, updated_at, created_via, deleted_at, id, account_id
     ]
 
-    def _build_deal_resource(self, deal_id=None, deal_ids=None, contact_ids=None, stage=None, page=1, per_page=None, format=None):
+    def _build_deal_resource(self, deal_id=None, deal_ids=None, contact_ids=None, stage=None, page=1, per_page=None,
+                             format=None):
         """
         Returns a tuple of URL (without parameters) and params to get deal objects meeting filter criteria
 
@@ -1912,7 +1956,8 @@ class BaseAPIService(object):
             elif stage in self.DEAL_STAGES:
                 url_params['stage'] = stage
             else:
-                raise ValueError("'%s' is not a valid stage, must come from '%s'" % str(stage), ','.join(self.DEAL_STAGES))
+                raise ValueError("'%s' is not a valid stage, must come from '%s'" % str(stage),
+                                 ','.join(self.DEAL_STAGES))
 
             if deal_id is not None:
                 path += '/%d' % deal_id
@@ -1941,7 +1986,7 @@ class BaseAPIService(object):
         see search_deals()
 
         """
-        url_noparam, url_params = self._build_deal_resource(deal_ids=deal_ids, page=page, format=self.format)
+        url_noparam, url_params = self._build_deal_resource(deal_ids=deal_ids, stage=stage, page=page, format=self.format)
         return self._get_data(url_noparam, url_params)
 
     def get_deal(self, deal_id):
@@ -2013,10 +2058,10 @@ class BaseAPIService(object):
         if filters is not None:
             for key, value in filters.items():
                 if key in self.DEAL_FILTERS:
-                    if key in ['tag_ids','tags']:
+                    if key in ['tag_ids', 'tags']:
                         # tags are case sensitive
                         valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
+                        if tags_exclusivity in ['and', 'or']:
                             valid_params['tags_exclusivity'] = tags_exclusivity
                         else:
                             raise ValueError("tags_exclusivity must be 'and' or 'or'")
@@ -2024,18 +2069,18 @@ class BaseAPIService(object):
                         # only lower case strings successfully match (regardless of original text case)
                         valid_params[key] = str(value).lower()
                 else:
-                    raise ValueError("%s is not a valid filter for a deal search" % (key))
+                    raise ValueError("%s is not a valid filter for a deal search" % key)
 
         # Configure sort order
         if sort_by is not None:
             if sort_by in self.DEAL_SORTS:
                 valid_params['sort_by'] = sort_by
             else:
-                raise ValueError("%s is not a valid sort field for a deal search" % (key))
-            if sort_order in ['asc','desc']:
+                raise ValueError("%s is not a valid sort field for a deal search" % sort_by)
+            if sort_order in ['asc', 'desc']:
                 valid_params['sort_order'] = sort_order
             else:
-                raise ValueError("%s is not a valid sort order for a deal search" % (sort_order))
+                raise ValueError("%s is not a valid sort order for a deal search" % sort_order)
 
         return self._get_data(url_noparam, valid_params)
 
@@ -2057,7 +2102,7 @@ class BaseAPIService(object):
         # If we are creating a new deal, we must have name and entity_id parameters
         # and we always must have some parameter
         if deal_info is None or (deal_id is None and
-                                 ('name' not in deal_info.keys() or 'entity_id' not in deal_info.keys())):
+                                ('name' not in deal_info.keys() or 'entity_id' not in deal_info.keys())):
             return "Missing required attributes 'name' or 'entity_id'"
 
         final_params = dict()
@@ -2104,7 +2149,7 @@ class BaseAPIService(object):
     ##########################
     # Sources Functions
     ##########################
-    SOURCES_VALUES = ['all','mine','auto']
+    SOURCES_VALUES = ['all', 'mine', 'auto']
 
     def _build_sources_resource(self, source_id=None, type='all', format=None):
         """
@@ -2142,7 +2187,7 @@ class BaseAPIService(object):
                     url_params['auto'] = 1
             else:
                 raise ValueError("'type' was set to '%s', but must come from '%s'" % str(type),
-                                 "', '".join(['all','mine','auto']))
+                                 "', '".join(['all', 'mine', 'auto']))
 
         url_noparam = self._build_resource_url('sales', 1, path, format)
         return url_noparam, url_params
@@ -2196,7 +2241,6 @@ class BaseAPIService(object):
         url_noparam, url_params = self._build_sources_resource(source_id=source_id, format=self.format)
         return self._get_data(url_noparam, url_params)
 
-
     ##########################
     # Lead Functions and Constants
     #
@@ -2212,7 +2256,7 @@ class BaseAPIService(object):
         'tag_ids',
         'owner_id',
         'status_id',
-        ]
+    ]
 
     LEAD_SORTS = [
         'account_id',
@@ -2222,7 +2266,7 @@ class BaseAPIService(object):
         'first_name',
         'id',
         'last_activity_date',
-        'last_activity', # Appears to be alias of last_activity_date
+        'last_activity',  # Appears to be alias of last_activity_date
         'last_name',
         'owner_id',
         'state',
@@ -2231,7 +2275,7 @@ class BaseAPIService(object):
         #'tag_ids', # Accepted by API but non-functional
         #'tags', # Accepted by API but non-functional
         'user_id',
-        ]
+    ]
 
     LEAD_PARAMS = [
         'lead_id',
@@ -2252,12 +2296,12 @@ class BaseAPIService(object):
         'country',
         'title',
         'description',
-# Valid for contacts, check for leads
-#        'industry',
-#        'website',
-#        'fax',
-#        'tag_list',
-#        'private',
+        # Valid for contacts, check for leads
+        #        'industry',
+        #        'website',
+        #        'fax',
+        #        'tag_list',
+        #        'private',
     ]
 
     def _build_lead_resource(self, lead_id=None, page=None, per_page=None, format=None):
@@ -2412,10 +2456,10 @@ class BaseAPIService(object):
         if filters is not None:
             for key, value in filters.items():
                 if key in self.LEAD_FILTERS:
-                    if key in ['tag_ids','tags']:
+                    if key in ['tag_ids', 'tags']:
                         # tags are case sensitive
                         valid_params[key] = ','.join(value)
-                        if tags_exclusivity in ['and','or']:
+                        if tags_exclusivity in ['and', 'or']:
                             valid_params['tags_exclusivity'] = tags_exclusivity
                         else:
                             raise ValueError("tags_exclusivity must be 'and' or 'or'")
@@ -2429,8 +2473,8 @@ class BaseAPIService(object):
             if sort_by in self.LEAD_SORTS:
                 valid_params['sort_by'] = sort_by
             else:
-                raise ValueError("%s is not a valid sort field for a Lead search" % key)
-            if sort_order in ['asc','desc']:
+                raise ValueError("%s is not a valid sort field for a Lead search" % sort_by)
+            if sort_order in ['asc', 'desc']:
                 valid_params['sort_order'] = sort_order
             else:
                 raise ValueError("%s is not a valid sort order for a Lead search" % sort_order)
@@ -2501,55 +2545,54 @@ class BaseAPIService(object):
         """
         return self._upsert_lead(lead_info=lead_info, lead_id=lead_id)
 
-    ##########################
-    # Email Functions
-    #
-    # NOT YET IMPLEMENTED
-    #
-    # V1
-    # https://app.futuresimple.com/apis/mailman/api/v1/email_profile.json
-    # https://app.futuresimple.com/apis/mailman/api/v1/email_profiles/check.json
-    #
-    # V2
-    # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json
-    # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json?postpone=true
-    #
-    # Inbox
-    # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=inbox&page=1&fields=items%2Ctotal_count&content=none
-    #
-    # Sent
-    # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=outbox&page=1&fields=items%2Ctotal_count&content=none
-    #
-    # Archived
-    # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=archived&page=1&fields=items%2Ctotal_count&content=none
-    #
-    # Untracked
-    # https://app.futuresimple.com/apis/mailman/api/v1/synced_emails/other.json?page=1
-    ##########################
+        ##########################
+        # Email Functions
+        #
+        # NOT YET IMPLEMENTED
+        #
+        # V1
+        # https://app.futuresimple.com/apis/mailman/api/v1/email_profile.json
+        # https://app.futuresimple.com/apis/mailman/api/v1/email_profiles/check.json
+        #
+        # V2
+        # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json
+        # https://app.futuresimple.com/apis/mailman/api/v2/email_profile.json?postpone=true
+        #
+        # Inbox
+        # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=inbox&page=1&fields=items%2Ctotal_count&content=none
+        #
+        # Sent
+        # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=outbox&page=1&fields=items%2Ctotal_count&content=none
+        #
+        # Archived
+        # https://app.futuresimple.com/apis/mailman/api/v2/synced_emails.json?mailbox=archived&page=1&fields=items%2Ctotal_count&content=none
+        #
+        # Untracked
+        # https://app.futuresimple.com/apis/mailman/api/v1/synced_emails/other.json?page=1
+        ##########################
 
-    ##########################
-    # Call Functions
-    #
-    # NOT YET IMPLEMENTED
-    #
-    # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
-    # https://app.futuresimple.com/apis/voice/api/v1/call_lists.json
-    # https://app.futuresimple.com/apis/voice/api/v1/call_outcomes.json
-    # https://app.futuresimple.com/apis/voice/api/v1/call_scripts.json
-    ##########################
+        ##########################
+        # Call Functions
+        #
+        # NOT YET IMPLEMENTED
+        #
+        # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
+        # https://app.futuresimple.com/apis/voice/api/v1/call_lists.json
+        # https://app.futuresimple.com/apis/voice/api/v1/call_outcomes.json
+        # https://app.futuresimple.com/apis/voice/api/v1/call_scripts.json
+        ##########################
 
-    ##########################
-    # Miscellaneous Functions
-    #
-    # NOT YET IMPLEMENTED
-    #
-    # https://app.futuresimple.com/apis/core/api/v2/startup.json
-    # https://app.futuresimple.com/apis/sales/api/v1/dashboard.json
-    # https://app.futuresimple.com/apis/core/api/v1/public/currencies.json
-    # https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=null
-    # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
-    # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
-    # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
-    # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=Deal&attachable_id=2255196
-    ##########################
-
+        ##########################
+        # Miscellaneous Functions
+        #
+        # NOT YET IMPLEMENTED
+        #
+        # https://app.futuresimple.com/apis/core/api/v2/startup.json
+        # https://app.futuresimple.com/apis/sales/api/v1/dashboard.json
+        # https://app.futuresimple.com/apis/core/api/v1/public/currencies.json
+        # https://app.futuresimple.com/apis/feeder/api/v1/feed.json?&timestamp=null
+        # https://app.futuresimple.com/apis/voice/api/v1/voice_preferences.json
+        # https://app.futuresimple.com/apis/sales/api/v1/integrations_status.json
+        # https://app.futuresimple.com/apis/crm/api/v1/mailchimp/status.json
+        # https://app.futuresimple.com/apis/uploader/api/v2/attachments.json?attachable_type=Deal&attachable_id=2255196
+        ##########################
