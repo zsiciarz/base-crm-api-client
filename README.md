@@ -1,7 +1,7 @@
 Introduction
 ============
 
-The original BaseCRM API Client (for Python) focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an enhanced version of this branch can be found under the "OfficialSupport" branch.  If FutureSimple expands their official API, we may port the relevant feature into this branch.
+The [original BaseCRM API Client (for Python)](http://github.com/npinger/base-crm-api-client) focused on replicating the [Base API Documentation](http://dev.futuresimple.com/api/overview) and an enhanced version of this branch can be found under the "OfficialSupport" branch.  If FutureSimple expands their official API, we may port the relevant feature into this branch.
 
 In early 2014, it became clear that FutureSimple was not regularly updating their API documents:
 
