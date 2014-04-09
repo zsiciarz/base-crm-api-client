@@ -204,7 +204,8 @@ class BaseAPIService(object):
             data = json.loads(data)
         return data
 
-    def _apply_format(self, url, format=None):
+    @classmethod
+    def _apply_format(cls, url, format=None):
         """
         (DEPRICATAED) This function appends an appropriate extension telling the BaseCRM API to respond in a particular
         format. The 'native' format uses json at the communication layer and automatically converts the data back to
@@ -1737,7 +1738,7 @@ class BaseAPIService(object):
 
         return self._get_data(url_noparam, valid_params)
 
-    def _upsert_contact(self, contact_info={}, contact_id=None):
+    def _upsert_contact(self, contact_info=None, contact_id=None):
         """
         Updates or Inserts a contact
 
@@ -2038,7 +2039,7 @@ class BaseAPIService(object):
 
         return self._get_data(url_noparam, valid_params)
 
-    def _upsert_deal(self, deal_info={}, deal_id=None):
+    def _upsert_deal(self, deal_info=None, deal_id=None):
         """
         Updates or Inserts a deal
 
@@ -2140,7 +2141,8 @@ class BaseAPIService(object):
                 elif type == 'auto':
                     url_params['auto'] = 1
             else:
-                raise ValueError("'type' was set to '%s', but must come from '%s'" % str(type), "', '".join())
+                raise ValueError("'type' was set to '%s', but must come from '%s'" % str(type),
+                                 "', '".join(['all','mine','auto']))
 
         url_noparam = self._build_resource_url('sales', 1, path, format)
         return url_noparam, url_params
@@ -2435,7 +2437,7 @@ class BaseAPIService(object):
 
         return self._get_data(url_noparam, valid_params)
 
-    def _upsert_lead(self, lead_info={}, lead_id=None):
+    def _upsert_lead(self, lead_info=None, lead_id=None):
         """
         Updates or Inserts a lead
 
