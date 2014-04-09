@@ -52,9 +52,9 @@ True) return a dict, nesting the list of items under an 'items' key.
 (2) While the search response for Leads and Deals returns the same fields as the get() calls, note that the search
 interface for contacts returns a shorter (17 record) response.
 
-(3) While the feed is paged, it does not use the standard page= interface. Instead, small changes can be seen in a
-timestamp= parameter.  Unfortunately, the composition of this parameter (mixed case alphanumerics using the full
-alphabet) is non-obvious so we are (at present) unable to reproduce it.
+(3) While the feed is paged, it does not use the standard page= interface. Instead, the page is managed through the
+timestamp= parameter.  The first page is obtained by sending "?timestamp=null".  The timestamp for subsequent pages is
+included in the metadata of the previous page.
 
 (4) These records are nested one deeper than standard responses (i.e. response['items'][0]['feed_items']['attributes'] )
 
@@ -68,15 +68,16 @@ class BaseAPIService(object):
         'xml'
     ]
 
-    def __init__(self, email, password, format='native'):
+    def __init__(self, email=None, password=None, token=None, format='native'):
         """
-        Gets a login token for base, and set the format for response objects.
+        Authenticate with base, and set the format for response objects.
 
         ARGUMENTS
 
         Credentials:
             email
             password
+            token - An existing API token; use either email + password or token
         Format:
             format='native' (default) - All public functions return native python objects (generally lists and dicts)
             format='json' - All public functions return strings of JSON objects
@@ -84,17 +85,22 @@ class BaseAPIService(object):
         """
         if format in self.FORMAT_OPTIONS:
             self.format = format
-
-        # Get token
-        status, self.token = self._get_login_token(email=email, password=password)
-        if status == "ERROR":
-            # If we get an error, return it.
-            logger.error(self.token)
-            self.auth_failed = True
+        # We already have a (possibly valid) token
+        if token is not None:
+            self.token = token
+            self.auth_failed = False
         else:
+            # Get token
+            status, self.token = self._get_login_token(email=email, password=password)
+            if status == "ERROR":
+                # If we get an error, return it.
+                logger.error(self.token)
+                self.auth_failed = True
+            else:
+                self.auth_failed = False
+        if not self.auth_failed:
             # Set URL header for future requests
             self.header = {"X-Pipejump-Auth": self.token, "X-Futuresimple-Token": self.token}
-            self.auth_failed = False
 
     ##########################
     # Token Functions
