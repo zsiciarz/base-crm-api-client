@@ -1505,6 +1505,17 @@ class BaseAPIService(object):
 
     # API does not appear to support reminders for leads
 
+    def _upsert_reminder(self, reminder_info, reminder_id=None, contact_id=None, deal_id=None, format=None):
+        url_noparam, url_params = self._build_reminder_resource(reminder_id=reminder_id, contact_id=contact_id, deal_id=deal_id, format=self.format)
+        url_params = _key_coded_dict({'reminder': reminder_info})
+        if reminder_id is None:
+            return self._post_data(url_noparam, url_params)
+        else:
+            return self._put_data(url_noparam, url_params)
+
+    def create_contact_reminder(self, reminder_info, contact_id):
+        return self._upsert_reminder(reminder_info=reminder_info, contact_id=contact_id)
+
     ##########################
     # Contact Functions and Constants
     #
