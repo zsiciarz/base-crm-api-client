@@ -224,7 +224,7 @@ class BaseAPIService(object):
     ##########################
     # Resource Builders
     #
-    # BaseCRM has started to transition object identification from the path to the parameters (or a combination).  In 
+    # BaseCRM has started to transition object identification from the path to the parameters (or a combination).  In
     # response, URL builder functions (returning just a url string) are being replaced with "resource" functions
     # returning a tuple of URL string (excluding parameters) and parameter dict.
     ##########################
@@ -1462,6 +1462,78 @@ class BaseAPIService(object):
     def get_lead_tasks(self, lead_id):
         return self._get_tasks(lead_id=lead_id, format=self.format)
 
+    def _upsert_task(self, task_info, task_id=None, contact_id=None, lead_id=None, deal_id=None, format=None):
+        """
+        PRIVATE FUNCTION to create or update a task
+
+        ARGUMENTS
+
+            task_info - dict of fields
+            task_id (optional) - task being updated (otherwise it will be created)
+        Parent object (choose one and only one):
+            contact_id
+            lead_id
+            deal_id
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+
+        RESPONSE STRUCTURE
+
+        see get_task()
+        """
+        url_noparam, url_params = self._build_task_resource(task_id=task_id, contact_id=contact_id,
+                                                            lead_id=lead_id, deal_id=deal_id, format=self.format)
+        if contact_id is not None:
+            task_info['taskable_type'] = 'Contact'
+            task_info['taskable_id'] = contact_id
+        elif deal_id is not None:
+            task_info['taskable_type'] = 'Deal'
+            task_info['taskable_id'] = deal_id
+        elif lead_id is not None:
+            task_info['taskable_type'] = 'Lead'
+            task_info['taskable_id'] = lead_id
+        url_params = _key_coded_dict({'task': task_info})
+        if task_id is None:
+            return self._post_data(url_noparam, url_params)
+        else:
+            return self._put_data(url_noparam, url_params)
+
+    def create_contact_task(self, task_info, contact_id):
+        """
+        Creates a new task based on task_info and assigns it to a contact
+        """
+        return self._upsert_task(task_info=task_info, contact_id=contact_id)
+
+    def update_contact_task(self, task_info, task_id):
+        """
+        Updates task identified by task_id with information from task_info
+        """
+        return self._upsert_task(task_info=task_info, task_id=task_id)
+
+    def create_deal_task(self, task_info, deal_id):
+        """
+        Creates a new task based on task_info and assigns it to a deal
+        """
+        return self._upsert_task(task_info=task_info, deal_id=deal_id)
+
+    def update_deal_task(self, task_info, task_id):
+        """
+        Updates task identified by task_id with information from task_info
+        """
+        return self._upsert_task(task_info=task_info, task_id=task_id)
+
+    def create_lead_task(self, task_info, lead_id):
+        """
+        Creates a new task based on task_info and assigns it to a lead
+        """
+        return self._upsert_task(task_info=task_info, lead_id=lead_id)
+
+    def update_lead_task(self, task_info, task_id):
+        """
+        Updates task identified by task_id with information from task_info
+        """
+        return self._upsert_task(task_info=task_info, task_id=task_id)
+
     ##########################
     # Reminder Functions
     ##########################
@@ -1504,6 +1576,40 @@ class BaseAPIService(object):
         return self._get_reminder(deal_id=deal_id, format=self.format)
 
     # API does not appear to support reminders for leads
+
+    def _upsert_reminder(self, reminder_info, reminder_id=None, contact_id=None, deal_id=None, format=None):
+        """
+        PRIVATE FUNCTION to create or update a reminder
+
+        ARGUMENTS
+
+            reminder_info - dict of fields
+            reminder_id (optional) - reminder being updated (otherwise it will be created)
+        Parent object (choose one and only one):
+            contact_id
+            deal_id
+        Format:
+            format (default None) - see BaseAPIService._apply_format() for accepted values
+        """
+        url_noparam, url_params = self._build_reminder_resource(reminder_id=reminder_id, contact_id=contact_id, deal_id=deal_id, format=self.format)
+        url_params = _key_coded_dict({'reminder': reminder_info})
+        if reminder_id is None:
+            return self._post_data(url_noparam, url_params)
+        else:
+            return self._put_data(url_noparam, url_params)
+
+    def create_contact_reminder(self, reminder_info, contact_id):
+        """
+        Creates a reminder based on reminder_info and assigns it to a contact
+        """
+        return self._upsert_reminder(reminder_info=reminder_info, contact_id=contact_id)
+
+    def create_deal_reminder(self, reminder_info, deal_id):
+        """
+        Creates a reminder based on reminder_info and assigns it to a deal
+        """
+        return self._upsert_reminder(reminder_info=reminder_info, deal_id=deal_id)
+    # Base returns error 500 when updating any kind of reminders
 
     ##########################
     # Contact Functions and Constants
