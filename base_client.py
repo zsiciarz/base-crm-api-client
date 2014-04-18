@@ -1951,6 +1951,58 @@ class BaseAPIService(object):
         """
         return self._upsert_contact(contact_info=contact_info, contact_id=contact_id)
 
+    def _unwrap_custom_fields(self, response):
+        """
+        Unwraps one level of indirection of custom field definitions
+        """
+        fields = {}
+        for item in response:
+            field = item['custom_field']
+            if field['list_options']:
+                field['list_options'] = dict(field['list_options'])
+            fields[field['name']] = field
+        return fields
+
+    def get_contact_custom_fields(self, filterable=False):
+        """
+        Returns contact custom field definitions
+
+        ARGUMENTS
+
+            filterable - if True, return only fields marked as filterable
+
+        RESPONSE STRUCTURE
+
+        Note: for dropdown fields, list_options is a dict mapping option IDs
+        to their values
+
+        {'field name':
+            {'custom_scope': ...
+             'date_time': ...
+             'field_type': ...
+             'filterable': ...
+             'for_contact': ...
+             'for_organisation': ...
+             'id': ...
+             'list_options': ...
+             'list_options_max': ...
+             'name': ...
+             'owner_id': ...
+             'owner_type': ...
+             'position': ...
+             'settings': ...
+             'value_editable_only_by_admin': ...
+            },
+        ...}
+        """
+        path = '/custom_fields'
+        url_noparam = self._build_resource_url('crm', 1, path, self.format)
+        url_params = {
+            'filterable': str(filterable).lower(),
+        }
+        response = self._get_data(url_noparam, url_params)
+        return self._unwrap_custom_fields(response)
+
     ##########################
     # Deals Functions and Constants
     #
@@ -2251,6 +2303,45 @@ class BaseAPIService(object):
         see get_deal()
         """
         return self._upsert_deal(deal_info=deal_info, deal_id=deal_id)
+
+    def get_deal_custom_fields(self, filterable=False):
+        """
+        Returns deal custom field definitions
+
+        ARGUMENTS
+
+            filterable - if True, return only fields marked as filterable
+
+        RESPONSE STRUCTURE
+
+        Note: for dropdown fields, list_options is a dict mapping option IDs
+        to their values
+
+        {'field name':
+            {'custom_scope': ...
+             'date_time': ...
+             'field_type': ...
+             'filterable': ...
+             'id': ...
+             'list_options': ...
+             'list_options_max': ...
+             'name': ...
+             'owner_id': ...
+             'owner_type': ...
+             'position': ...
+             'settings': ...
+             'value_editable_only_by_admin': ...
+             'writable': ...
+            },
+        ...}
+        """
+        path = '/deal_custom_fields'
+        url_noparam = self._build_resource_url('sales', 1, path, self.format)
+        url_params = {
+            'filterable': str(filterable).lower(),
+        }
+        response = self._get_data(url_noparam, url_params)
+        return self._unwrap_custom_fields(response)
 
     ##########################
     # Sources Functions
@@ -2650,6 +2741,35 @@ class BaseAPIService(object):
         see get_lead()
         """
         return self._upsert_lead(lead_info=lead_info, lead_id=lead_id)
+
+    def get_lead_custom_fields(self):
+        """
+        Returns lead custom field definitions
+
+        RESPONSE STRUCTURE
+
+        Note: for dropdown fields, list_options is a dict mapping option IDs
+        to their values
+
+        {'field name':
+            {'date_time': ...
+             'field_type': ...
+             'filterable': ...
+             'id': ...
+             'list_options': ...
+             'name': ...
+             'position': ...
+             'settings': ...
+             'value_editable_only_by_admin': ...
+             'writable': ...
+            },
+        ...}
+        """
+        path = '/custom_fields'
+        url_noparam = self._build_resource_url('leads', 1, path, self.format)
+        url_params = {}
+        response = self._get_data(url_noparam, url_params)
+        return self._unwrap_custom_fields(response['items'])
 
         ##########################
         # Email Functions
