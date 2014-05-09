@@ -2150,6 +2150,14 @@ class BaseAPIService(object):
         url_noparam, url_params = self._build_deal_resource(deal_ids=deal_ids, stage=stage, page=page, format=self.format)
         return self._get_data(url_noparam, url_params)
 
+    def get_contact_deals(self, contact_id, page=1, per_page=None):
+        """
+        Gets all deals associated with a given contact.
+        """
+        url_noparam, url_params = self._build_deal_resource(contact_ids=contact_id, page=page, per_page=per_page,
+                                                            format=self.format)
+        return self._get_data(url_noparam, url_params)
+
     def get_deal(self, deal_id):
         """
         Gets the deal with the given deal_id. Returns the deal info.
